@@ -1,0 +1,14 @@
+{
+  "resourceType": "Bundle",
+  "type": "transaction",
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:org-1",
+      "resource": {
+        "resourceType": "Organization",
+        "id": "org-1",
+        "name": "Fixture General Hospital"
+      }
+    }
+  ]
+}

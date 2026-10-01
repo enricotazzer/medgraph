@@ -1,0 +1,24 @@
+# Pilot: measures run time and size per patient before a large run, and is used to check
+# that regenerating with identical inputs gives byte-identical output.
+# Same Synthea release, seeds, date and exporter settings as dev-1000.
+name: pilot-10
+description: Pilot cohort, 10 patients, same settings as dev-1000.
+synthea:
+  version: v4.0.0
+  jar_url: https://github.com/synthetichealth/synthea/releases/download/v4.0.0/synthea-with-dependencies.jar
+  jar_sha256: ed43c20ad40ba5c3bc724503a5af032715fe3c491620b766148e7c2361e6ecc1
+population: 10
+seed: 42
+clinician_seed: 42
+reference_date: 2026-01-01  # passed as both -r and -e
+state: Massachusetts
+properties:
+  exporter.fhir.export: true
+  exporter.fhir.use_us_core_ig: true
+  exporter.fhir.us_core_version: 6.1.0
+  exporter.hospital.fhir.export: true
+  exporter.practitioner.fhir.export: true
+  exporter.csv.export: false
+  exporter.ccda.export: false
+  exporter.text.export: false
+  exporter.years_of_history: 10

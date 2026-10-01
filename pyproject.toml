@@ -1,0 +1,93 @@
+[project]
+name = "medgraph"
+version = "0.1.0"
+description = "Patient knowledge graph with evidence-grounded follow-up flags. Research prototype, not a medical device."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "enricotazzer", email = "enrico.tappo00@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.13.5",
+    "pydantic-settings>=2.15.0",
+    "pyyaml>=6.0.3",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.19,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.168.3",
+    "mypy>=2.3.1",
+    "pre-commit>=4.6.2",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.16.9",
+    "types-pyyaml>=6.0.12.20260906",
+]
+notebook = [
+    "ipykernel>=7.4.0",
+    "matplotlib>=3.11.2",
+    "pandas>=3.0.6",
+]
+
+[tool.uv]
+# `uv sync` installs the notebook group too, so the review notebook has a kernel.
+default-groups = ["dev", "notebook"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "scripts", "scripts/dev", "tests"]
+extend-exclude = ["frontend"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",  # pycodestyle
+    "F",       # pyflakes
+    "I",       # isort
+    "B",       # bugbear
+    "UP",      # pyupgrade
+    "SIM",     # simplify
+    "RUF",     # ruff-specific
+    "PT",      # pytest style
+    "N",       # pep8-naming
+    "C4",      # comprehensions
+    "DTZ",     # no naive datetimes: clinical timelines must be timezone-aware
+    "T20",     # no print(): record values must not leak to stdout
+]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/**" = ["T20"]  # command-line tools report to the terminal
+"notebooks/**" = ["T20"]  # notebooks report results
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+plugins = ["pydantic.mypy"]
+files = ["src", "scripts"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["tests"]
+pythonpath = ["scripts", "scripts/dev"]
+addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importlib"]
+markers = [
+    "llm: needs a local Ollama server (enable with --run-llm)",
+    "synthea: needs a generated Synthea cohort in MEDGRAPH_DATA_DIR (enable with --run-synthea)",
+    "mimic: needs local MIMIC-IV, never runs in CI (enable with --run-mimic)",
+]
+
+[tool.coverage.run]
+source = ["medgraph"]
+branch = true

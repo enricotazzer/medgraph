@@ -1,0 +1,504 @@
+{
+  "resourceType": "Bundle",
+  "type": "transaction",
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:pat-a",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "pat-a",
+        "gender": "female",
+        "birthDate": "1960-05-01"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:enc-a1",
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "enc-a1",
+        "status": "finished",
+        "subject": {
+          "reference": "urn:uuid:pat-a"
+        },
+        "period": {
+          "start": "2025-01-10T09:00:00+00:00",
+          "end": "2025-01-10T09:00:00+00:00"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:enc-a2",
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "enc-a2",
+        "status": "finished",
+        "subject": {
+          "reference": "urn:uuid:pat-a"
+        },
+        "period": {
+          "start": "2025-04-25T09:00:00+00:00",
+          "end": "2025-04-25T09:00:00+00:00"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:enc-a3",
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "enc-a3",
+        "status": "finished",
+        "subject": {
+          "reference": "urn:uuid:pat-a"
+        },
+        "period": {
+          "start": "2025-05-01T09:00:00+00:00",
+          "end": "2025-05-01T09:00:00+00:00"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-a1",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-a1",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "38483-4",
+              "display": "Creatinine [Mass/volume] in Blood"
+            }
+          ],
+          "text": "Creatinine [Mass/volume] in Blood"
+        },
+        "subject": {
+          "reference": "urn:uuid:pat-a"
+        },
+        "effectiveDateTime": "2025-01-10T09:00:00+00:00",
+        "valueQuantity": {
+          "value": 1.4,
+          "unit": "mg/dL",
+          "system": "http://unitsofmeasure.org",
+          "code": "mg/dL"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-a2",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-a2",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "38483-4",
+              "display": "Creatinine [Mass/volume] in Blood"
+            }
+          ],
+          "text": "Creatinine [Mass/volume] in Blood"
+        },
+        "subject": {
+          "reference": "urn:uuid:pat-a"
+        },
+        "effectiveDateTime": "2025-03-01T09:00:00+00:00",
+        "valueQuantity": {
+          "value": 1.5,
+          "unit": "mg/dL",
+          "system": "http://unitsofmeasure.org",
+          "code": "mg/dL"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-a3",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-a3",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "38483-4",
+              "display": "Creatinine [Mass/volume] in Blood"
+            }
+          ],
+          "text": "Creatinine [Mass/volume] in Blood"
+        },
+        "subject": {
+          "reference": "urn:uuid:pat-a"
+        },
+        "effectiveDateTime": "2025-04-25T09:00:00+00:00",
+        "valueQuantity": {
+          "value": 1.6,
+          "unit": "mg/dL",
+          "system": "http://unitsofmeasure.org",
+          "code": "mg/dL"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-a4",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-a4",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "33914-3",
+              "display": "Glomerular filtration rate [Volume Rate/Area] in Serum or Plasma by Creatinine-based formula (MDRD)/1.73 sq M"
+            }
+          ],
+          "text": "Glomerular filtration rate [Volume Rate/Area] in Serum or Plasma by Creatinine-based formula (MDRD)/1.73 sq M"
+        },
+        "subject": {
+          "reference": "urn:uuid:pat-a"
+        },
+        "effectiveDateTime": "2025-01-10T09:00:00+00:00",
+        "valueQuantity": {
+          "value": 45.0,
+          "unit": "mL/min/{1.73_m2}",
+          "system": "http://unitsofmeasure.org",
+          "code": "mL/min/{1.73_m2}"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-a5",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-a5",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "718-7",
+              "display": "Hemoglobin [Mass/volume] in Blood"
+            }
+          ],
+          "text": "Hemoglobin [Mass/volume] in Blood"
+        },
+        "subject": {
+          "reference": "urn:uuid:pat-a"
+        },
+        "effectiveDateTime": "2025-01-10T09:00:00+00:00",
+        "valueQuantity": {
+          "value": 12.5,
+          "unit": "g/dL",
+          "system": "http://unitsofmeasure.org",
+          "code": "g/dL"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-a6",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-a6",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "vital-signs"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "8302-2",
+              "display": "Body Height"
+            }
+          ],
+          "text": "Body Height"
+        },
+        "subject": {
+          "reference": "urn:uuid:pat-a"
+        },
+        "effectiveDateTime": "2025-01-10T09:00:00+00:00",
+        "valueQuantity": {
+          "value": 165.0,
+          "unit": "cm",
+          "system": "http://unitsofmeasure.org",
+          "code": "cm"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-a7",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-a7",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "20454-5",
+              "display": "Protein [Presence] in Urine by Test strip"
+            }
+          ],
+          "text": "Protein [Presence] in Urine by Test strip"
+        },
+        "subject": {
+          "reference": "urn:uuid:pat-a"
+        },
+        "effectiveDateTime": "2025-01-10T09:00:00+00:00",
+        "valueCodeableConcept": {
+          "text": "Negative"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-a8",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-a8",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "57905-2",
+              "display": "Hemoglobin.gastrointestinal.lower [Presence] in Stool by Immunoassay --1st specimen"
+            }
+          ],
+          "text": "Hemoglobin.gastrointestinal.lower [Presence] in Stool by Immunoassay --1st specimen"
+        },
+        "subject": {
+          "reference": "urn:uuid:pat-a"
+        },
+        "effectiveDateTime": "2025-01-10T09:00:00+00:00",
+        "valueQuantity": {
+          "value": 20.0,
+          "unit": "ng/mL",
+          "system": "http://unitsofmeasure.org",
+          "code": "ng/mL"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:cond-a1",
+      "resource": {
+        "resourceType": "Condition",
+        "id": "cond-a1",
+        "code": {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "433144002",
+              "display": "Chronic kidney disease stage 3 (disorder)"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:pat-a"
+        },
+        "onsetDateTime": "2024-06-01T09:00:00+00:00"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:cond-a2",
+      "resource": {
+        "resourceType": "Condition",
+        "id": "cond-a2",
+        "code": {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "38341003",
+              "display": "Hypertension (disorder)"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:pat-a"
+        },
+        "onsetDateTime": "2010-06-01T09:00:00+00:00"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:med-a1",
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "id": "med-a1",
+        "status": "active",
+        "intent": "order",
+        "subject": {
+          "reference": "urn:uuid:pat-a"
+        },
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "314076",
+              "display": "lisinopril 10 MG Oral Tablet"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:doc-a1",
+      "resource": {
+        "resourceType": "DocumentReference",
+        "id": "doc-a1",
+        "status": "current",
+        "subject": {
+          "reference": "urn:uuid:pat-a"
+        },
+        "content": [
+          {
+            "attachment": {
+              "contentType": "text/plain; charset=utf-8",
+              "data": "QXNzZXNzbWVudDogY2hyb25pYyBraWRuZXkgZGlzZWFzZSBzdGFnZSAzLg=="
+            }
+          }
+        ],
+        "context": {
+          "encounter": [
+            {
+              "reference": "urn:uuid:enc-a1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:rep-a1",
+      "resource": {
+        "resourceType": "DiagnosticReport",
+        "id": "rep-a1",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/v2-0074",
+                "code": "LAB",
+                "display": "Laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Metabolic panel"
+        },
+        "subject": {
+          "reference": "urn:uuid:pat-a"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:rep-a2",
+      "resource": {
+        "resourceType": "DiagnosticReport",
+        "id": "rep-a2",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://loinc.org",
+                "code": "34117-2",
+                "display": "History and physical note"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "text": "Note"
+        },
+        "subject": {
+          "reference": "urn:uuid:pat-a"
+        },
+        "presentedForm": [
+          {
+            "contentType": "text/plain; charset=utf-8",
+            "data": "QXNzZXNzbWVudDogY2hyb25pYyBraWRuZXkgZGlzZWFzZSBzdGFnZSAzLg=="
+          }
+        ]
+      }
+    }
+  ]
+}

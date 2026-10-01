@@ -1,0 +1,34 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Data never lives in the repository (see MEDGRAPH_DATA_DIR); these guard the default location.
+data/
+runs/
+*.jar
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Tool caches and reports
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# macOS (AppleDouble ._* files appear on exFAT volumes)
+.DS_Store
+._*
+
+# Frontend
+frontend/node_modules/

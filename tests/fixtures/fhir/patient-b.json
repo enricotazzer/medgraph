@@ -1,0 +1,173 @@
+{
+  "resourceType": "Bundle",
+  "type": "transaction",
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:pat-b",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "pat-b",
+        "gender": "male",
+        "birthDate": "1950-02-01",
+        "deceasedDateTime": "2025-06-01T12:00:00+00:00"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:enc-b1",
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "enc-b1",
+        "status": "finished",
+        "subject": {
+          "reference": "urn:uuid:pat-b"
+        },
+        "period": {
+          "start": "2025-05-20T09:00:00+00:00",
+          "end": "2025-05-20T09:00:00+00:00"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:enc-b2",
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "enc-b2",
+        "status": "finished",
+        "subject": {
+          "reference": "urn:uuid:pat-b"
+        },
+        "period": {
+          "start": "2025-06-02T09:00:00+00:00",
+          "end": "2025-06-02T09:00:00+00:00"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-b1",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-b1",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "718-7",
+              "display": "Hemoglobin [Mass/volume] in Blood"
+            }
+          ],
+          "text": "Hemoglobin [Mass/volume] in Blood"
+        },
+        "subject": {
+          "reference": "urn:uuid:pat-b"
+        },
+        "effectiveDateTime": "2025-05-20T09:00:00+00:00",
+        "valueQuantity": {
+          "value": 11.0,
+          "unit": "g/dL",
+          "system": "http://unitsofmeasure.org",
+          "code": "g/dL"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-b2",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-b2",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "718-7",
+              "display": "Hemoglobin [Mass/volume] in Blood"
+            }
+          ],
+          "text": "Hemoglobin [Mass/volume] in Blood"
+        },
+        "subject": {
+          "reference": "urn:uuid:pat-b"
+        },
+        "effectiveDateTime": "2025-05-21T09:00:00+00:00",
+        "valueQuantity": {
+          "value": 110.0,
+          "unit": "g/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "g/L"
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:cond-b1",
+      "resource": {
+        "resourceType": "Condition",
+        "id": "cond-b1",
+        "code": {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "271737000",
+              "display": "Anemia (disorder)"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:pat-b"
+        },
+        "onsetDateTime": "2025-05-20T09:00:00+00:00"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:medication-b1",
+      "resource": {
+        "resourceType": "Medication",
+        "id": "medication-b1",
+        "code": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "310325",
+              "display": "ferrous sulfate 325 MG Oral Tablet"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:med-b1",
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "id": "med-b1",
+        "status": "active",
+        "intent": "order",
+        "subject": {
+          "reference": "urn:uuid:pat-b"
+        },
+        "medicationReference": {
+          "reference": "urn:uuid:medication-b1"
+        }
+      }
+    }
+  ]
+}
