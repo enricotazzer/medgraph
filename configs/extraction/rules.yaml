@@ -1,0 +1,5 @@
+# Rule-based transcription baseline: line patterns built on the development layouts only.
+name: rules
+method: rules
+report_set: reports-v1
+formats: [text, pdf]

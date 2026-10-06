@@ -2,7 +2,7 @@
 # Extra arguments: make synthea-dev ARGS=--force
 
 .PHONY: setup lint format typecheck test test-synthea check synthea-pilot synthea-dev profile \
-	normalization review
+	normalization extract-rules extract-llm report review
 
 setup:
 	uv sync
@@ -39,6 +39,25 @@ profile:
 
 normalization:
 	uv run python scripts/check_normalization.py dev-1000 $(ARGS)
+
+# Lab-report extraction evaluation (Phase 1d), SPLIT=dev or test.
+SPLIT ?= dev
+export OLLAMA_MODELS
+
+extract-rules:
+	uv run python scripts/evaluate_extraction.py configs/extraction/rules.yaml --split $(SPLIT) $(ARGS)
+
+# Takes hours, so it runs in the background (see scripts/dev/llm_run.sh). For example:
+#   make extract-llm SPLIT=dev ARGS="--formats text" OLLAMA_MODELS=/Volumes/T7/ollama-models
+extract-llm:
+	scripts/dev/llm_run.sh qwen35-9b-$(SPLIT) uv run python scripts/evaluate_extraction.py \
+		configs/extraction/qwen35-9b.yaml --split $(SPLIT) $(ARGS)
+
+# Technical report: figures from the saved metrics, then the PDF (docs/reports/build/).
+report:
+	uv run python scripts/report_figures.py
+	cd docs/reports && latexmk -lualatex -interaction=nonstopmode -halt-on-error -outdir=build \
+		medgraph-phase0-1-report.tex
 
 # Re-run the review notebook in place (needs the T7 mounted).
 review:

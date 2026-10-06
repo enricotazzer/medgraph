@@ -1,0 +1,7 @@
+# Local LLM transcription (Ollama, temperature 0, seed 42, thinking off).
+# About two minutes per report on an M3 with 16 GB RAM: the test split takes several hours.
+name: qwen35-9b
+method: llm
+model: qwen3.5:9b
+report_set: reports-v1
+formats: [text, pdf]

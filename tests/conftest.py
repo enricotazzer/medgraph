@@ -3,6 +3,11 @@
 from pathlib import Path
 
 import pytest
+from hypothesis import settings
+
+# Correctness, not speed: a busy machine (e.g. a local LLM run) must not fail property tests.
+settings.register_profile("medgraph", deadline=None)
+settings.load_profile("medgraph")
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

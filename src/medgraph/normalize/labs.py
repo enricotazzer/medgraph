@@ -6,6 +6,7 @@ names the reason, so a flag can report "one creatinine value could not be used: 
 instead of silently ignoring it.
 """
 
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Literal
 
@@ -24,14 +25,14 @@ from medgraph.records import (
 
 LOINC = "http://loinc.org"
 
-LabStatus = Literal[
+ConversionStatus = Literal[
     "ok",
     "implausible",  # converted, but outside the analyte's sanity bounds
     "unit_unknown",  # unit spelling not recognised
     "unit_incompatible",  # recognised unit that cannot be converted for this analyte
-    "non_numeric",  # qualitative result, e.g. "negative"
-    "missing_value",
 ]
+# Plus "non_numeric" (a qualitative result such as "negative") and "missing_value".
+LabStatus = Literal[ConversionStatus, "non_numeric", "missing_value"]
 
 
 class LabResult(BaseModel):
@@ -74,30 +75,49 @@ def normalize_observation(obs: Observation) -> LabResult | None:
         status: LabStatus = "non_numeric" if qualitative else "missing_value"
         return LabResult(**base, status=status, qualitative=qualitative)
 
-    ucum = to_ucum(q.code) or to_ucum(q.unit)
-    if ucum is None:
-        detail = f"unit {q.code or q.unit!r} not recognised"
-        return LabResult(**base, status="unit_unknown", original=q, detail=detail)
-    factor = analyte.to_canonical.get(ucum)
-    if factor is None:
-        detail = f"{ucum} cannot be converted to {analyte.canonical_unit}"
-        return LabResult(**base, status="unit_incompatible", original=q, detail=detail)
-
-    value = q.value * factor
-    plausible = analyte.sanity_low <= value <= analyte.sanity_high
-    bounds = f"{analyte.sanity_low}-{analyte.sanity_high} {analyte.canonical_unit}"
-    low, high = _reference_bounds(obs, analyte, ucum)
+    conversion = convert_quantity(analyte, q)
+    if conversion.value is None:
+        return LabResult(**base, status=conversion.status, original=q, detail=conversion.detail)
+    assert conversion.ucum is not None
+    low, high = _reference_bounds(obs, analyte, conversion.ucum)
     return LabResult(
         **base,
-        status="ok" if plausible else "implausible",
-        value=value,
+        status=conversion.status,
+        value=conversion.value,
         unit=analyte.canonical_unit,
         comparator=q.comparator,
         original=q,
         reference_low=low,
         reference_high=high,
-        detail=None if plausible else f"outside sanity bounds {bounds}",
+        detail=conversion.detail,
     )
+
+
+@dataclass(frozen=True)
+class Conversion:
+    status: ConversionStatus
+    value: Decimal | None  # canonical unit; None unless the unit converts
+    ucum: str | None  # the recognised UCUM unit of the input
+    detail: str | None
+
+
+def convert_quantity(analyte: Analyte, q: Quantity) -> Conversion:
+    """Convert ``q`` to ``analyte``'s canonical unit and check it against the sanity bounds.
+
+    The one conversion path for every source: FHIR observations and lab-report rows alike.
+    """
+    ucum = to_ucum(q.code) or to_ucum(q.unit)
+    if ucum is None:
+        return Conversion("unit_unknown", None, None, f"unit {q.code or q.unit!r} not recognised")
+    factor = analyte.to_canonical.get(ucum)
+    if factor is None:
+        detail = f"{ucum} cannot be converted to {analyte.canonical_unit}"
+        return Conversion("unit_incompatible", None, ucum, detail)
+    value = q.value * factor
+    if analyte.sanity_low <= value <= analyte.sanity_high:
+        return Conversion("ok", value, ucum, None)
+    bounds = f"{analyte.sanity_low}-{analyte.sanity_high} {analyte.canonical_unit}"
+    return Conversion("implausible", value, ucum, f"outside sanity bounds {bounds}")
 
 
 def _reference_bounds(

@@ -1,0 +1,17 @@
+# Synthetic lab reports for the extraction evaluation (Phase 1d).
+# Patients never appear in both splits. The test split adds two layout families
+# (two_column, narrative) and held-out analyte names that development never shows,
+# so results on unseen layouts and unseen names are reported separately.
+name: reports-v1
+source_cohort: dev-1000
+seed: 7
+max_rows: 15
+test_patient_fraction: 0.5
+dev:
+  families: [table, dotted, colon, sections]
+  reports_per_cell: 3  # per (family, language): 4 x 2 x 3 = 24 reports
+  held_out_name_rate: 0.0
+test:
+  families: [table, dotted, colon, sections, two_column, narrative]
+  reports_per_cell: 4  # 6 x 2 x 4 = 48 reports
+  held_out_name_rate: 0.5
