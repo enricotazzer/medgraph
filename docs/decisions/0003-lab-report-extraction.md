@@ -1,6 +1,6 @@
 # 0003: Lab-report extraction and its evaluation
 
-- Status: proposed (awaiting the user's review at the end of Phase 1)
+- Status: accepted (reviewed 2026-10-07); open decisions 1, 2 and 4 handled in [ADR 0004](0004-report-interpretation-hardening.md)
 - Date: 2026-10-05
 
 ## Context
@@ -100,6 +100,7 @@ Lab results also arrive as free-text and PDF reports, in Italian and English, in
   The PDF version of the same report was correct. The grounding check can't catch this, because the text really is in the report. Both rows were out of scope, so nothing was accepted. On an in-scope analyte, though, the value would have been accepted as "below 200". One-sided ranges like these are common in real reports.
   - Since it was found on the test split, the pipeline was **not** changed after the fact.
   - A consistency check is the candidate fix: reject a row whose value equals its range, or occurs only inside it. It needs a fresh report set before any number is claimed for it.
+  - *Addressed in ADR 0004:* the row-order check (`misplaced`), measured on the fresh set reports-v2.
 - **Cost:** median 67 s per report (maximum 127 s), about 2 h for the 96 transcriptions. Another CPU-heavy job was running on the machine at the time, so timings are indicative only.
 
 ## Consequences
@@ -108,5 +109,5 @@ Lab results also arrive as free-text and PDF reports, in Italian and English, in
 - **Analyte identity is decided by the name table, not the LLM.** The LLM and the rules baseline therefore score the same on held-out names; that metric measures the table.
   - None of the 40 held-out names is in the table (checked). The few that map do so through the generic rule that drops a trailing parenthetical (`Ferritin (serum)`).
   - Adding a name means editing the tested table, not the prompt. A possible extension, to be decided: the LLM proposes mappings for unmapped names, and a person confirms each one before it enters the table.
-- **Report eGFR rows don't carry their equation.** FHIR labs take it from the LOINC code. A report row keeps only the printed name (e.g. `VFG (stima MDRD)`). Rules don't rely on reported eGFR (ADR 0002), but the timeline should show the printed name.
+- **Report eGFR rows don't carry their equation.** FHIR labs take it from the LOINC code. A report row keeps only the printed name (e.g. `VFG (stima MDRD)`). Rules don't rely on reported eGFR (ADR 0002), but the timeline should show the printed name. *Addressed in ADR 0004:* `ReportRow.method`.
 - Scanned reports need an OCR stage with its own evaluation before they can be accepted.

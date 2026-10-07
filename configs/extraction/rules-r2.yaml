@@ -1,0 +1,5 @@
+# Rule-based baseline on the fresh test set (reports-v2); rules unchanged since Phase 1.
+name: rules-r2
+method: rules
+report_set: reports-v2
+formats: [text, pdf]

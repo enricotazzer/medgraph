@@ -7,12 +7,15 @@ Two steps, kept apart on purpose:
    (:func:`transcribe_with_llm`), and :func:`transcribe_with_rules` is the rule-based baseline.
 2. **Interpretation** (:func:`interpret`) is deterministic code. A transcribed field must occur
    verbatim in the report or the whole row is rejected as ungrounded, which catches invented
-   values. Number parsing, units, analyte names and conversion then reuse
+   values; the fields must also read in row order, which catches a value copied from the
+   reference range. The decimal separator and the date order come from evidence in the report,
+   never from a guess. Number parsing, units, analyte names and conversion then reuse
    ``medgraph.normalize``, the same path FHIR observations take.
 """
 
 import datetime as dt
 import re
+from collections.abc import Iterator
 from decimal import Decimal
 from typing import Any, Literal
 
@@ -20,11 +23,22 @@ from pydantic import BaseModel, ConfigDict
 
 from medgraph.agent.llm import LLMResponse, OllamaClient
 from medgraph.normalize.analyte_names import analyte_for_name
-from medgraph.normalize.analytes import BY_KEY
+from medgraph.normalize.analytes import BY_KEY, egfr_equation
 from medgraph.normalize.labs import convert_quantity
-from medgraph.normalize.numbers import NumberLocale, NumberParseError, parse_number
+from medgraph.normalize.numbers import (
+    NumberLocale,
+    NumberParseError,
+    decimal_separator_evidence,
+    parse_number,
+)
 from medgraph.normalize.ranges import RangeParseError, parse_reference_range
-from medgraph.normalize.time import ReportLocale, TimeParseError, parse_report_date
+from medgraph.normalize.time import (
+    DateOrder,
+    ReportLanguage,
+    TimeParseError,
+    date_order_evidence,
+    parse_inferred_report_date,
+)
 from medgraph.records import Comparator, Quantity, SourceRef
 
 # --- transcription ---------------------------------------------------------------------
@@ -176,6 +190,7 @@ RowStatus = Literal[
     "unparseable_value",
     "unmapped",  # analyte name not in the name table
     "ungrounded",  # a transcribed field does not occur in the report: rejected
+    "misplaced",  # every field occurs, but not in row order (e.g. the range as value): rejected
 ]
 
 _QUALITATIVE = re.compile(r"[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ ]*")
@@ -187,7 +202,14 @@ _EN_WORDS = (
     "result", "test", "reference", "units", "collected", "collection", "report", "hemoglobin",
     "haemoglobin", "creatinine", "glucose", "platelets", "cholesterol", "page",
 )  # fmt: skip
-_SI_UNITS = re.compile(r"µmol/l|umol/l|mg/mmol|(?<![a-z])g/l\b|(?<![a-z])l/l\b", re.IGNORECASE)
+# Between an analyte name and its value: a reference-range label, or a bracket opening onto a
+# number ("(4,0", "[< 200"). A value found only after one of these was copied from the range.
+_RANGE_MARKER = re.compile(
+    r"\b(?:ref|rif|riferimento|reference|range|intervallo)\b|[(\[]\s*(?:[<>≤≥]=?\s*)?\d",
+    re.IGNORECASE,
+)
+_NAME_TO_VALUE = 100  # characters allowed between a name and its value (dot leaders, labels)
+_FIELD_GAP = 60  # ... and from the value to its unit, and on to its range
 
 
 class ReportRow(BaseModel):
@@ -207,6 +229,7 @@ class ReportRow(BaseModel):
     comparator: Comparator | None = None
     reference_low: Decimal | None = None  # canonical unit
     reference_high: Decimal | None = None
+    method: str | None = None  # eGFR equation as the printed name states it
     detail: str | None = None
 
 
@@ -214,23 +237,55 @@ class ReportResult(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     source: str
-    number_locale: NumberLocale
-    date_locale: ReportLocale
+    language: ReportLanguage
+    number_locale: NumberLocale | None  # None: the report proves no decimal separator
+    date_order: DateOrder | None  # None: the report proves no order of day and month
     collection_date: dt.date | None
     collection_date_text: str
     rows: tuple[ReportRow, ...]
     issues: tuple[str, ...] = ()
 
 
-def detect_locale(text: str) -> tuple[NumberLocale, ReportLocale]:
-    """Italian or English by vocabulary; English dates are read day-first when SI units
-    (umol/L, g/L, mg/mmol) suggest a UK-style lab, month-first otherwise."""
+def detect_language(text: str) -> ReportLanguage:
+    """Italian or English, by counting each language's report vocabulary."""
     lowered = text.lower()
     italian = sum(lowered.count(w) for w in _IT_WORDS)
     english = sum(lowered.count(w) for w in _EN_WORDS)
-    if italian > english:
-        return "it", "it"
-    return "en", "en-GB" if _SI_UNITS.search(text) else "en-US"
+    return "it" if italian > english else "en"
+
+
+def report_conventions(
+    text: str,
+) -> tuple[ReportLanguage, NumberLocale | None, DateOrder | None, list[str]]:
+    """Language, decimal separator and date order of a report, and any contradictions.
+
+    The separator and the date order come from evidence in the report itself (see
+    :func:`~medgraph.normalize.numbers.decimal_separator_evidence` and
+    :func:`~medgraph.normalize.time.date_order_evidence`). Italian reports are day-first by
+    convention; an English report without evidence has no date order, so an ambiguous date
+    in it is refused instead of guessed.
+    """
+    language = detect_language(text)
+    issues: list[str] = []
+    separators = decimal_separator_evidence(text)
+    number_locale: NumberLocale | None = None
+    if len(separators) > 1:
+        issues.append("the report uses both decimal commas and decimal points")
+    elif separators:
+        (number_locale,) = separators
+        if number_locale != language:
+            issues.append(f"decimal separator ({number_locale}) differs from language ({language})")
+    orders = date_order_evidence(text)
+    date_order: DateOrder | None = None
+    if len(orders) > 1:
+        issues.append("the report prints dates both day-first and month-first")
+    elif orders:
+        (date_order,) = orders
+        if language == "it" and date_order == "month_first":
+            issues.append("month-first dates in an Italian report")
+    elif language == "it":
+        date_order = "day_first"
+    return language, number_locale, date_order, issues
 
 
 def _squash(text: str) -> str:
@@ -239,13 +294,14 @@ def _squash(text: str) -> str:
 
 def interpret(transcription: Transcription, text: str, source: str) -> ReportResult:
     """Turn a transcription of ``text`` into normalized rows; never trusts the transcriber."""
-    number_locale, date_locale = detect_locale(text)
+    language, number_locale, date_order, issues = report_conventions(text)
     haystack = _squash(text)
-    issues: list[str] = []
     collection_date = None
     if transcription.collection_date:
         try:
-            collection_date = parse_report_date(transcription.collection_date, date_locale)
+            collection_date = parse_inferred_report_date(
+                transcription.collection_date, language, date_order
+            )
         except TimeParseError as exc:
             issues.append(f"collection date not read: {exc}")
     rows = tuple(
@@ -254,8 +310,9 @@ def interpret(transcription: Transcription, text: str, source: str) -> ReportRes
     )
     return ReportResult(
         source=source,
+        language=language,
         number_locale=number_locale,
-        date_locale=date_locale,
+        date_order=date_order,
         collection_date=collection_date,
         collection_date_text=transcription.collection_date,
         rows=rows,
@@ -280,8 +337,48 @@ def split_value_unit(value: str, unit: str) -> tuple[str, str]:
     return v, unit
 
 
+def _occurrences(
+    haystack: str, needle: str, start: int = 0, last: int | None = None
+) -> Iterator[int]:
+    """Positions where ``needle`` starts in ``haystack``, from ``start`` up to ``last``."""
+    last = len(haystack) if last is None else last
+    i = haystack.find(needle, start)
+    while i != -1 and i <= last:
+        yield i
+        i = haystack.find(needle, i + 1)
+
+
+def misplacement(name: str, value: str, unit: str, range_text: str, haystack: str) -> str | None:
+    """Why grounded fields cannot form one row of the report, or ``None`` if they can.
+
+    Every layout reads name, value, unit, range: the value follows the name with no
+    reference-range marker in between, and the unit and the range follow the value. A value
+    copied from the range (``< 200`` from ``(rif. < 200)``) fails this, although every field
+    occurs in the report. ``haystack`` is the whitespace-squashed report text.
+    """
+    name, value, unit, range_text = (_squash(f) for f in (name, value, unit, range_text))
+    for n in _occurrences(haystack, name):
+        after_name = n + len(name)
+        for v in _occurrences(haystack, value, after_name, after_name + _NAME_TO_VALUE):
+            if _RANGE_MARKER.search(haystack, after_name, v):
+                continue
+            end = v + len(value)
+            if unit:
+                u = next(_occurrences(haystack, unit, end, end + _FIELD_GAP), None)
+                if u is None:
+                    continue
+                end = u + len(unit)
+            if (
+                range_text
+                and next(_occurrences(haystack, range_text, end, end + _FIELD_GAP), None) is None
+            ):
+                continue
+            return None
+    return "fields are not in row order (value after the name and before any reference range)"
+
+
 def _interpret_row(
-    index: int, row: TranscribedRow, haystack: str, locale: NumberLocale, source: str
+    index: int, row: TranscribedRow, haystack: str, locale: NumberLocale | None, source: str
 ) -> ReportRow:
     base: dict[str, Any] = {
         "index": index,
@@ -299,13 +396,16 @@ def _interpret_row(
     if missing or not row.analyte or not row.value:
         detail = f"not found in the report: {missing!r}" if missing else "empty analyte or value"
         return ReportRow(**base, status="ungrounded", detail=detail)
+    value_text, unit_text = split_value_unit(row.value, row.unit)
+    if reason := misplacement(row.analyte, value_text, unit_text, row.reference_range, haystack):
+        return ReportRow(**base, status="misplaced", detail=reason)
 
     key = analyte_for_name(row.analyte)
     if key is None:
         return ReportRow(**base, status="unmapped", detail="analyte name not in the name table")
     analyte = BY_KEY[key]
     base["analyte"] = key
-    value_text, unit_text = split_value_unit(row.value, row.unit)
+    base["method"] = egfr_equation(row.analyte) if key == "egfr" else None
     if _QUALITATIVE.fullmatch(value_text):
         return ReportRow(**base, status="non_numeric")
     try:

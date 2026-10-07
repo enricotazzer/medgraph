@@ -1,0 +1,22 @@
+# Fresh, test-only report set for Phase 1e (ADR 0004). reports-v1, test split included, was
+# examined while developing the row-order and locale checks, so it no longer gives a clean
+# estimate. Compared with reports-v1:
+# - no patient of reports-v1 appears (read from its report headers);
+# - the "dev" families are those already seen during development; they get no reports here
+#   and mark which layouts are not held out. Only the new "vertical" layout is unseen;
+# - held-out analyte names at 0.25 (0.5 in v1): more accepted rows, hence a tighter bound on
+#   wrong values accepted; refusal of unknown names was already measured on reports-v1.
+name: reports-v2
+source_cohort: dev-1000
+seed: 20261007
+max_rows: 15
+test_patient_fraction: 0.9
+exclude_patients_of: [reports-v1]
+dev:
+  families: [table, dotted, colon, sections, two_column, narrative]
+  reports_per_cell: 0
+  held_out_name_rate: 0.0
+test:
+  families: [table, dotted, colon, sections, two_column, narrative, vertical]
+  reports_per_cell: 6  # 7 families x 2 languages x 6 = 84 reports
+  held_out_name_rate: 0.25

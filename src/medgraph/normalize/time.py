@@ -1,8 +1,10 @@
 """Timestamps: FHIR ``date``/``dateTime`` values and dates printed on lab reports.
 
 Nothing here guesses a timezone. A FHIR time of day without a UTC offset is rejected (the
-FHIR specification requires one), and a numeric report date is read day-first or month-first
-only according to the stated locale.
+FHIR specification requires one). A numeric report date is read day-first or month-first
+according to a stated locale (:func:`parse_report_date`) or, when the locale is only inferred,
+according to evidence (:func:`parse_inferred_report_date`); an ambiguous date with neither is
+refused.
 """
 
 import datetime as dt
@@ -12,6 +14,8 @@ from typing import Literal
 from medgraph.records import Timepoint
 
 ReportLocale = Literal["it", "en-GB", "en-US"]
+ReportLanguage = Literal["it", "en"]
+DateOrder = Literal["day_first", "month_first"]
 
 _FHIR_TIME = re.compile(
     r"(?P<year>\d{4})(?:-(?P<month>\d{2})(?:-(?P<day>\d{2})"
@@ -64,24 +68,75 @@ def parse_fhir_time(value: str) -> Timepoint:
 
 
 def parse_report_date(text: str, locale: ReportLocale) -> dt.date:
-    """Parse a date as printed on a lab report in ``locale``.
+    """Parse a date as printed on a lab report in a stated ``locale``.
 
     Accepts ISO dates, numeric dates with a four-digit year (day-first for ``it`` and
     ``en-GB``, month-first for ``en-US``) and dates with month names in Italian or English.
     """
+    order: DateOrder = "month_first" if locale == "en-US" else "day_first"
+    return _parse_date(text, "it" if locale == "it" else "en", order)
+
+
+def parse_inferred_report_date(
+    text: str, language: ReportLanguage, order: DateOrder | None
+) -> dt.date:
+    """Parse a report date when the locale was inferred, not stated.
+
+    A numeric date is read in ``order`` (from :func:`date_order_evidence`). With no order it is
+    read only if its own digits settle it (a field above 12, or two equal fields); a date such
+    as ``03/04/2025`` is refused rather than guessed. Month names are read in ``language``.
+    """
+    return _parse_date(text, language, order)
+
+
+def date_order_evidence(text: str) -> frozenset[DateOrder]:
+    """The orders that numeric dates in ``text`` prove: a first field above 12 can only be a
+    day (day-first), a second field above 12 likewise (month-first). Both means the text
+    contradicts itself."""
+    found: set[DateOrder] = set()
+    for m in _DATE_IN_TEXT.finditer(text):
+        first, second = int(m[1]), int(m[2])
+        if first > 12 >= second:
+            found.add("day_first")
+        elif second > 12 >= first:
+            found.add("month_first")
+        # Equal fields (09/09/2024) read the same either way, so they prove nothing about
+        # other dates in the report.
+    return frozenset(found)
+
+
+_DATE_IN_TEXT = re.compile(r"(?<!\d)(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})(?!\d)")
+
+
+def _own_order(first: int, second: int) -> DateOrder | None:
+    if first > 12:
+        return "day_first"
+    if second > 12:
+        return "month_first"
+    if first == second:
+        return "day_first"  # both readings give the same date
+    return None
+
+
+def _parse_date(text: str, language: ReportLanguage, order: DateOrder | None) -> dt.date:
     t = " ".join(text.strip().lower().split())
     try:
         if m := _ISO_DATE.fullmatch(t):
             return dt.date(int(m[1]), int(m[2]), int(m[3]))
         if m := _NUMERIC_DATE.fullmatch(t):
             first, second, year = int(m[1]), int(m[2]), int(m[3])
-            day, month = (second, first) if locale == "en-US" else (first, second)
+            order = order or _own_order(first, second)
+            if order is None:
+                raise TimeParseError(f"date order unclear: {text!r} could be day- or month-first")
+            day, month = (second, first) if order == "month_first" else (first, second)
             return dt.date(year, month, day)
-        months = _MONTHS_IT if locale == "it" else _MONTHS_EN
+        months = _MONTHS_IT if language == "it" else _MONTHS_EN
         if (m := _TEXT_DAY_FIRST.fullmatch(t)) and m[2] in months:
             return dt.date(int(m[3]), months[m[2]], int(m[1]))
         if (m := _TEXT_MONTH_FIRST.fullmatch(t)) and m[1] in months:
             return dt.date(int(m[3]), months[m[1]], int(m[2]))
     except ValueError as exc:
+        if isinstance(exc, TimeParseError):
+            raise
         raise TimeParseError(f"invalid date {text!r}: {exc}") from exc
-    raise TimeParseError(f"unrecognised {locale} date: {text!r}")
+    raise TimeParseError(f"unrecognised {language} date: {text!r}")

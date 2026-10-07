@@ -89,8 +89,14 @@ class ReportScore:
     seen_names_ok: int = 0
     held_out_names: int = 0
     held_out_names_ok: int = 0
+    misplaced: int = 0  # rows rejected as not in row order (e.g. the range as value)
+    ambiguous_values: int = 0  # values refused: separator not proven by the report
     date_ok: int = 0
-    locale_ok: int = 0
+    date_refused: int = 0  # no date stored (e.g. day/month order not proven)
+    date_wrong: int = 0  # a date stored, but not the printed one
+    language_ok: int = 0
+    separator_wrong: int = 0  # a decimal separator inferred, but the wrong one
+    date_order_wrong: int = 0  # a date order inferred, but the wrong one
     seconds: float = 0.0
     output_tokens: int = 0
 
@@ -174,6 +180,10 @@ def score_report(
         truth_rows=len(truth.rows),
         predicted_rows=len(transcription.rows),
         ungrounded=sum(r.status == "ungrounded" for r in result.rows),
+        misplaced=sum(r.status == "misplaced" for r in result.rows),
+        ambiguous_values=sum(
+            r.status == "unparseable_value" and "ambiguous" in (r.detail or "") for r in result.rows
+        ),
     )
     matches, _ = match_rows(truth, transcription)
     truth_of: dict[int, TruthRow] = {}  # transcribed index -> paired truth row
@@ -213,8 +223,12 @@ def score_report(
             paired = truth_of.get(j)
             score.accepted_wrong += paired is None or not _same_value(r, paired)
     score.date_ok = int(result.collection_date == truth.collection_date)
-    expected_locale = ("it", "it") if truth.language == "it" else ("en", truth.style)
-    score.locale_ok = int((result.number_locale, result.date_locale) == expected_locale)
+    score.date_refused = int(result.collection_date is None)
+    score.date_wrong = int(not score.date_ok and not score.date_refused)
+    score.language_ok = int(result.language == truth.language)
+    score.separator_wrong = int(result.number_locale not in (None, truth.language))
+    expected_order = "month_first" if truth.style == "en-US" else "day_first"
+    score.date_order_wrong = int(result.date_order not in (None, expected_order))
     return score
 
 
@@ -229,11 +243,17 @@ RATES: dict[str, tuple[str, str]] = {
     "end-to-end, seen names": ("end_to_end_seen_ok", "in_scope_seen"),
     "end-to-end, held-out names": ("end_to_end_held_out_ok", "in_scope_held_out"),
     "ungrounded rows (rejected)": ("ungrounded", "predicted_rows"),
+    "misplaced rows (rejected)": ("misplaced", "predicted_rows"),
+    "values refused as ambiguous": ("ambiguous_values", "predicted_rows"),
     "wrong values accepted": ("accepted_wrong", "accepted"),
     "name mapping, seen names": ("seen_names_ok", "seen_names"),
     "name mapping, held-out names": ("held_out_names_ok", "held_out_names"),
     "collection date": ("date_ok", "reports"),
-    "locale detection": ("locale_ok", "reports"),
+    "collection date not stored": ("date_refused", "reports"),
+    "collection date wrong": ("date_wrong", "reports"),
+    "language detection": ("language_ok", "reports"),
+    "decimal separator wrong": ("separator_wrong", "reports"),
+    "date order wrong": ("date_order_wrong", "reports"),
 }
 
 

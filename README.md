@@ -29,7 +29,7 @@ Turns a person's medical records (conditions, medications, labs, procedures, enc
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 0 | Project setup, reproducible Synthea cohort, data profile | done |
-| 1 | FHIR ingestion, lab normalization, lab-report extraction and its evaluation | done, under review: results in `docs/results/`, design in ADR 0003 |
+| 1 | FHIR ingestion, lab normalization, lab-report extraction and its evaluation | done (ADR 0003); hardening 1e under review (ADR 0004, results in `docs/results/`) |
 | 2 | Patient knowledge graph and visualization | planned |
 | 3 | Guideline rules and follow-up flags | planned |
 | 4 | Retrieval-augmented explanations and drug knowledge | planned |

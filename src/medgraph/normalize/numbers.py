@@ -89,3 +89,25 @@ def _to_plain(s: str, locale: NumberLocale | None, original: str) -> str:
 
 def _is_grouped(s: str, sep: str) -> bool:
     return re.fullmatch(_GROUPED.format(sep=re.escape(sep)), s) is not None
+
+
+# A number with exactly one separator, not part of a longer token such as a date
+# ("26.02.2023"): the digits after the separator decide whether it must be a decimal.
+_SINGLE_SEPARATOR = re.compile(r"(?<![\d.,])\d+([.,])(\d+)(?![\d]|[.,]\d)")
+# Clock times written with a dot ("ore 08.30") would look like decimals.
+_CLOCK_TIME = re.compile(r"\b(?:ore|alle|h|at|time)\.?:?\s*\d{1,2}[.:]\d{2}\b", re.IGNORECASE)
+
+
+def decimal_separator_evidence(text: str) -> frozenset[NumberLocale]:
+    """The number locales that numbers in ``text`` prove.
+
+    One separator followed by one, two, or four or more digits can only be a decimal separator
+    (``13,5`` proves Italian, ``0.70`` English). One followed by exactly three digits
+    (``1.200``) could be either, so it proves nothing. Clock times after a time word
+    (``ore 08.30``) are skipped. Both locales in the result means the text contradicts itself.
+    """
+    found: set[NumberLocale] = set()
+    for m in _SINGLE_SEPARATOR.finditer(_CLOCK_TIME.sub(" ", text)):
+        if len(m[2]) != 3:
+            found.add("it" if m[1] == "," else "en")
+    return frozenset(found)

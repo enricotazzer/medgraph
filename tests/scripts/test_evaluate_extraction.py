@@ -86,7 +86,9 @@ def test_perfect_transcription() -> None:
     assert (s.value_ok, s.unit_ok, s.range_ok, s.flag_ok) == (3, 3, 3, 3)  # brackets ignored
     assert s.in_scope == 2
     assert s.seen_names == s.seen_names_ok == 2
-    assert (s.date_ok, s.locale_ok, s.ungrounded) == (1, 1, 0)
+    assert (s.ungrounded, s.misplaced, s.language_ok) == (0, 0, 1)
+    # "07/03/2025" alone proves no day/month order: refused, never guessed.
+    assert (s.date_ok, s.date_refused, s.date_wrong, s.date_order_wrong) == (0, 1, 0, 0)
     assert (s.in_scope_seen, s.end_to_end_seen_ok, s.in_scope_held_out) == (2, 2, 0)
     assert (s.accepted, s.accepted_wrong) == (2, 0)  # glucose is unmapped, not accepted
 
@@ -100,6 +102,18 @@ def test_a_plausible_wrong_value_that_is_accepted_is_counted() -> None:
     )
     assert (s.ungrounded, s.accepted, s.accepted_wrong) == (0, 2, 1)
     assert ev.rate(ev.totals([s]), "wrong values accepted") == 1 / 2
+
+
+def test_a_date_settled_by_another_date_is_scored_correct() -> None:
+    transcription = Transcription(collection_date="07/03/2025")
+    text = TEXT.replace("07/03/2025", "07/03/2025    Report date: 19/03/2025")
+    s = ev.score_report(TRUTH, transcription, interpret(transcription, text, "r"), "text", set())
+    assert (s.date_ok, s.date_refused, s.date_wrong) == (1, 0, 0)
+
+
+def test_a_value_copied_from_the_range_is_counted_as_misplaced() -> None:
+    s = score(TranscribedRow(analyte="Haemoglobin", value="120", unit="g/L"))  # from [120 - 155]
+    assert (s.misplaced, s.accepted, s.accepted_wrong) == (1, 0, 0)
 
 
 def test_errors_are_counted_per_field() -> None:

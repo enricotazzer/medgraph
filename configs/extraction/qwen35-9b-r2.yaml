@@ -1,0 +1,7 @@
+# Local LLM on the fresh test set (reports-v2), prompt transcribe-v3 unchanged since Phase 1.
+# 84 reports as text and PDF: about 3 h on an M3 with 16 GB RAM.
+name: qwen35-9b-r2
+method: llm
+model: qwen3.5:9b
+report_set: reports-v2
+formats: [text, pdf]

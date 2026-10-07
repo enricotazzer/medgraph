@@ -17,6 +17,7 @@ FAMILIES: tuple[gen.Family, ...] = (
     "sections",
     "two_column",
     "narrative",
+    "vertical",
 )
 STYLES = ("it", "en-US", "en-GB")
 
@@ -173,3 +174,33 @@ def test_report_specs_balance_languages() -> None:
     assert len(set(ids)) == len(ids)
     dev_styles = [st for s, _, st, _ in specs if s == "dev"]
     assert dev_styles.count("it") == 2
+
+
+def test_a_test_only_set_has_no_development_reports() -> None:
+    cfg = gen.ReportsConfig(
+        name="t",
+        source_cohort="c",
+        seed=1,
+        max_rows=10,
+        test_patient_fraction=0.9,
+        dev=gen.SplitConfig(families=("table",), reports_per_cell=0, held_out_name_rate=0),
+        test=gen.SplitConfig(families=("vertical",), reports_per_cell=3, held_out_name_rate=0.25),
+        exclude_patients_of=("reports-v1",),
+    )
+    assert {s for s, *_ in gen.report_specs(cfg)} == {"test"}
+
+
+def test_vertical_layout_prints_one_labelled_field_per_line() -> None:
+    lines, truths = render("vertical", "en-GB")
+    first = truths[0]
+    assert lines[:2] == [f"Test: {first.analyte_text}", f"Result: {first.value_text}"]
+    assert "" in lines  # a blank line between tests
+    assert gen.footer("en", one_page=False) == ["", "Electronically validated report."]
+
+
+def test_patients_of_an_earlier_set_are_read_from_its_headers(tmp_path: Path) -> None:
+    (tmp_path / "test").mkdir()
+    (tmp_path / "test" / "a.txt").write_text("LAB\nPatient ID: 2bde1944    Sex: F\n")
+    (tmp_path / "test" / "b.txt").write_text("LAB\nID paziente: 70d57309    Sesso: M\n")
+    (tmp_path / "test" / "a.truth.json").write_text("{}")
+    assert gen.printed_patient_tags(tmp_path) == {"2bde1944", "70d57309"}

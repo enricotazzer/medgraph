@@ -17,6 +17,7 @@ import datetime as dt
 import hashlib
 import json
 import random
+import re
 import textwrap
 from collections.abc import Iterator
 from decimal import ROUND_HALF_UP, Decimal
@@ -45,7 +46,7 @@ from medgraph.normalize.analytes import BY_KEY
 from medgraph.records import PatientRecord
 from medgraph.settings import Settings
 
-Family = Literal["table", "dotted", "colon", "sections", "two_column", "narrative"]
+Family = Literal["table", "dotted", "colon", "sections", "two_column", "narrative", "vertical"]
 Language = Literal["it", "en"]
 SECTION_ORDER = ("hematology", "chemistry", "urine")
 MONTHS_IT = ("gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio",
@@ -61,7 +62,7 @@ class SplitConfig(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     families: tuple[Family, ...]
-    reports_per_cell: int = Field(gt=0)  # per (family, language)
+    reports_per_cell: int = Field(ge=0)  # per (family, language); 0 for a test-only set
     held_out_name_rate: float = Field(ge=0, le=1)
 
 
@@ -75,6 +76,8 @@ class ReportsConfig(BaseModel):
     test_patient_fraction: float = Field(gt=0, lt=1)
     dev: SplitConfig
     test: SplitConfig
+    # Earlier report sets whose patients must not appear here (read from their headers).
+    exclude_patients_of: tuple[str, ...] = ()
 
 
 class TruthRow(BaseModel):
@@ -342,10 +345,11 @@ def header(report: TruthReport, patient_tag: str, rnd: random.Random) -> list[st
     ]
 
 
-def footer(language: Language) -> list[str]:
+def footer(language: Language, one_page: bool = True) -> list[str]:
+    """Closing lines; the page line only when the PDF fits on one page."""
     if language == "it":
-        return ["", "Referto validato elettronicamente.", "Pagina 1 di 1"]
-    return ["", "Electronically validated report.", "Page 1 of 1"]
+        return ["", "Referto validato elettronicamente.", *(["Pagina 1 di 1"] if one_page else [])]
+    return ["", "Electronically validated report.", *(["Page 1 of 1"] if one_page else [])]
 
 
 def flag_mark(flag: str, family: Family, language: Language) -> str:
@@ -458,6 +462,18 @@ def render_rows(
         width = max(len(c) for c in cells[0::2]) + 4
         for left, right in zip(cells[0::2], [*cells[1::2], ""], strict=False):
             lines.append(pad([(0, left), (width, right)]))
+    elif family == "vertical":  # one labelled field per line, a blank line between tests
+        labels = (
+            ("Esame", "Risultato", "Unità", "Valori di riferimento", "Segnalazione")
+            if it
+            else ("Test", "Result", "Unit", "Reference range", "Flag")
+        )
+        for i, t in enumerate(truths):
+            fields = (t.analyte_text, t.value_text, t.unit_text, t.range_text, t.flag_text)
+            lines += [""] if i else []
+            lines += [
+                f"{label}: {text}" for label, text in zip(labels, fields, strict=True) if text
+            ]
     else:  # narrative
         ref = "riferimento" if it else "reference"
         sentences = []
@@ -510,7 +526,26 @@ def report_specs(cfg: ReportsConfig) -> Iterator[tuple[Split, Family, Style, int
                 yield split, family, style, k // 2
 
 
-def generate(cfg: ReportsConfig, fhir_dir: Path, out_dir: Path) -> list[TruthReport]:
+def patient_tag(record: PatientRecord) -> str:
+    """The pseudonymous patient ID printed in report headers."""
+    return hashlib.sha256(record.patient.id.encode()).hexdigest()[:8]
+
+
+_TAG_LINE = re.compile(r"^(?:Patient ID|ID paziente): (?P<tag>[0-9a-f]{8})\b", re.MULTILINE)
+
+
+def printed_patient_tags(report_dir: Path) -> frozenset[str]:
+    """Patient tags printed in the headers of an existing report set."""
+    return frozenset(
+        m["tag"]
+        for path in iter_data_files(report_dir, "*.txt")
+        for m in _TAG_LINE.finditer(path.read_text(encoding="utf-8"))
+    )
+
+
+def generate(
+    cfg: ReportsConfig, fhir_dir: Path, out_dir: Path, excluded: frozenset[str] = frozenset()
+) -> list[TruthReport]:
     bundles = sorted(
         iter_data_files(fhir_dir, "*.json"),
         key=lambda p: hashlib.sha256(f"{cfg.seed}:{p.name}".encode()).hexdigest(),
@@ -523,7 +558,7 @@ def generate(cfg: ReportsConfig, fhir_dir: Path, out_dir: Path) -> list[TruthRep
     reports = []
     for n, (split, family, style, k) in enumerate(report_specs(cfg)):
         rnd = random.Random(f"{cfg.seed}:{n}")
-        record, days = next_patient(pools[split], cursors, split)
+        record, days = next_patient(pools[split], cursors, split, excluded)
         date = rnd.choice(sorted(days))
         sex = {"female": "F", "male": "M"}.get(record.patient.gender, "U")
         split_cfg = cfg.dev if split == "dev" else cfg.test
@@ -545,8 +580,8 @@ def generate(cfg: ReportsConfig, fhir_dir: Path, out_dir: Path) -> list[TruthRep
             rows=(),
         )
         body, truths = render_rows(rows, family, language, rnd)
-        patient_tag = hashlib.sha256(record.patient.id.encode()).hexdigest()[:8]
-        lines = header(draft, patient_tag, rnd) + body + footer(language)
+        lines = header(draft, patient_tag(record), rnd) + body
+        lines += footer(language, one_page=family != "vertical")
         report = draft.model_copy(update={"rows": tuple(truths)})
         target = out_dir / split
         target.mkdir(parents=True, exist_ok=True)
@@ -560,7 +595,7 @@ def generate(cfg: ReportsConfig, fhir_dir: Path, out_dir: Path) -> list[TruthRep
 
 
 def next_patient(
-    pool: list[Path], cursors: dict[str, int], split: str
+    pool: list[Path], cursors: dict[str, int], split: str, excluded: frozenset[str] = frozenset()
 ) -> tuple[PatientRecord, dict[dt.date, list[SourceValue]]]:
     while cursors[split] < len(pool):
         path = pool[cursors[split]]
@@ -568,6 +603,8 @@ def next_patient(
         try:
             record = read_bundle_file(path)
         except BundleError:
+            continue
+        if patient_tag(record) in excluded:
             continue
         days = lab_days(record)
         if days:
@@ -589,7 +626,11 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{out_dir} exists; pass --force to replace it")
             return 1
         remove_tree(out_dir)
-    reports = generate(cfg, settings.synthea_dir / cfg.source_cohort / "fhir", out_dir)
+    excluded = frozenset().union(
+        *(printed_patient_tags(settings.lab_reports_dir / name) for name in cfg.exclude_patients_of)
+    )
+    fhir_dir = settings.synthea_dir / cfg.source_cohort / "fhir"
+    reports = generate(cfg, fhir_dir, out_dir, excluded)
     files = {p.relative_to(out_dir).as_posix(): sha256_file(p) for p in iter_data_files(out_dir)}
     manifest = {
         "config": cfg.model_dump(mode="json"),
@@ -599,6 +640,8 @@ def main(argv: list[str] | None = None) -> int:
         "files": files,
     }
     (out_dir / "MANIFEST.json").write_text(json.dumps(manifest, indent=2) + "\n", "utf-8")
+    if excluded:
+        print(f"excluded {len(excluded)} patients of {', '.join(cfg.exclude_patients_of)}")
     print(
         f"{len(reports)} reports, {manifest['rows']} rows -> {out_dir}\n"
         f"content digest {manifest['content_digest']}"

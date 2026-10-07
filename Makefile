@@ -40,18 +40,20 @@ profile:
 normalization:
 	uv run python scripts/check_normalization.py dev-1000 $(ARGS)
 
-# Lab-report extraction evaluation (Phase 1d), SPLIT=dev or test.
+# Lab-report extraction evaluation, SPLIT=dev or test; configs/extraction/<name>.yaml.
 SPLIT ?= dev
+RULES ?= rules
+LLM ?= qwen35-9b
 export OLLAMA_MODELS
 
 extract-rules:
-	uv run python scripts/evaluate_extraction.py configs/extraction/rules.yaml --split $(SPLIT) $(ARGS)
+	uv run python scripts/evaluate_extraction.py configs/extraction/$(RULES).yaml --split $(SPLIT) $(ARGS)
 
 # Takes hours, so it runs in the background (see scripts/dev/llm_run.sh). For example:
 #   make extract-llm SPLIT=dev ARGS="--formats text" OLLAMA_MODELS=/Volumes/T7/ollama-models
 extract-llm:
-	scripts/dev/llm_run.sh qwen35-9b-$(SPLIT) uv run python scripts/evaluate_extraction.py \
-		configs/extraction/qwen35-9b.yaml --split $(SPLIT) $(ARGS)
+	scripts/dev/llm_run.sh $(LLM)-$(SPLIT) uv run python scripts/evaluate_extraction.py \
+		configs/extraction/$(LLM).yaml --split $(SPLIT) $(ARGS)
 
 # Technical report: figures from the saved metrics, then the PDF (docs/reports/build/).
 report:

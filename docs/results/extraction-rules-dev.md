@@ -4,7 +4,7 @@
 
 Method: **rules**. Report set `reports-v1`, 24 reports, 186 rows per format. 95% intervals in parentheses: bootstrap over reports, or, marked *, exact binomial where the observed rate is 0% or 100% (the bootstrap collapses there; the exact interval treats rows as independent).
 
-Code: commit `86c8688` plus uncommitted changes, code digest `0fe9dc2dcf87`; report set digest `e47d7ca5fe67`.
+Code: commit `6ab0813` plus uncommitted changes, code digest `217fda1ca24d`; report set digest `e47d7ca5fe67`.
 
 ## Overall
 
@@ -20,11 +20,17 @@ Code: commit `86c8688` plus uncommitted changes, code digest `0fe9dc2dcf87`; rep
 | end-to-end, seen names | 100.0% (94-100*) | 100.0% (94-100*) |
 | end-to-end, held-out names | n/a | n/a |
 | ungrounded rows (rejected) | 0.0% (0-2*) | 0.0% (0-2*) |
+| misplaced rows (rejected) | 0.0% (0-2*) | 0.0% (0-2*) |
+| values refused as ambiguous | 0.0% (0-2*) | 0.0% (0-2*) |
 | wrong values accepted | 0.0% (0-6*) | 0.0% (0-6*) |
 | name mapping, seen names | 100.0% (94-100*) | 100.0% (94-100*) |
 | name mapping, held-out names | n/a | n/a |
-| collection date | 100.0% (85-100*) | 100.0% (85-100*) |
-| locale detection | 100.0% (85-100*) | 100.0% (85-100*) |
+| collection date | 83.3% (66-96) | 83.3% (66-96) |
+| collection date not stored | 16.7% (4-34) | 16.7% (4-34) |
+| collection date wrong | 0.0% (0-15*) | 0.0% (0-15*) |
+| language detection | 100.0% (85-100*) | 100.0% (85-100*) |
+| decimal separator wrong | 0.0% (0-15*) | 0.0% (0-15*) |
+| date order wrong | 0.0% (0-15*) | 0.0% (0-15*) |
 
 ## By language
 
@@ -34,7 +40,7 @@ Code: commit `86c8688` plus uncommitted changes, code digest `0fe9dc2dcf87`; rep
 | value exact | 100.0% | 100.0% | 100.0% | 100.0% |
 | unit exact | 100.0% | 100.0% | 100.0% | 100.0% |
 | end-to-end canonical value | 100.0% | 100.0% | 100.0% | 100.0% |
-| collection date | 100.0% | 100.0% | 100.0% | 100.0% |
+| collection date | 100.0% | 100.0% | 66.7% | 66.7% |
 
 ## By layout family (text)
 

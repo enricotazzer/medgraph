@@ -2,7 +2,15 @@ import datetime as dt
 
 import pytest
 
-from medgraph.normalize.time import ReportLocale, TimeParseError, parse_fhir_time, parse_report_date
+from medgraph.normalize.time import (
+    DateOrder,
+    ReportLocale,
+    TimeParseError,
+    date_order_evidence,
+    parse_fhir_time,
+    parse_inferred_report_date,
+    parse_report_date,
+)
 
 
 @pytest.mark.parametrize(
@@ -75,3 +83,40 @@ def test_report_dates_that_would_need_guessing_are_rejected(
 ) -> None:
     with pytest.raises(TimeParseError):
         parse_report_date(text, locale)
+
+
+@pytest.mark.parametrize(
+    ("text", "orders"),
+    [
+        ("Collected: 03/19/2019    Report date: 03/20/2019", {"month_first"}),
+        ("Collection date: 18/02/2024", {"day_first"}),
+        ("Data prelievo: 26.02.2023", {"day_first"}),
+        ("Collected: 03/04/2025    Report date: 03/05/2025", set()),
+        ("Date collected: 09/08/2024    Report date: 09/09/2024", set()),  # equal fields
+        ("born 19/02/1980, collected 03/19/2025", {"day_first", "month_first"}),
+        ("version 1.2.2025 and 2025-03-04", set()),  # ISO dates prove nothing about day/month
+    ],
+)
+def test_date_order_evidence(text: str, orders: set[str]) -> None:
+    assert date_order_evidence(text) == orders
+
+
+@pytest.mark.parametrize(
+    ("text", "order", "expected"),
+    [
+        ("19/02/2024", None, dt.date(2024, 2, 19)),  # its own digits settle it
+        ("02/19/2024", None, dt.date(2024, 2, 19)),
+        ("05/05/2024", None, dt.date(2024, 5, 5)),  # both readings agree
+        ("03/04/2025", "day_first", dt.date(2025, 4, 3)),
+        ("03/04/2025", "month_first", dt.date(2025, 3, 4)),
+        ("16 settembre 2025", None, dt.date(2025, 9, 16)),
+    ],
+)
+def test_inferred_report_dates(text: str, order: DateOrder | None, expected: dt.date) -> None:
+    language = "it" if "settembre" in text else "en"
+    assert parse_inferred_report_date(text, language, order) == expected
+
+
+def test_an_ambiguous_inferred_date_is_refused() -> None:
+    with pytest.raises(TimeParseError, match="date order unclear"):
+        parse_inferred_report_date("03/04/2025", "en", None)

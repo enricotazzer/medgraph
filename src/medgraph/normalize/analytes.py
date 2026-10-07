@@ -9,6 +9,7 @@ and corrupt values; they are not clinical criteria. A value outside them is kept
 but marked so that no rule uses it.
 """
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
@@ -149,3 +150,25 @@ BY_LOINC: dict[str, Analyte] = {code: a for a in ANALYTES for code in a.loinc}
 
 def analyte_for_loinc(code: str | None) -> Analyte | None:
     return BY_LOINC.get(code) if code else None
+
+
+_EGFR_EQUATIONS = (
+    (re.compile(r"\bmdrd\b", re.IGNORECASE), "MDRD"),
+    (
+        re.compile(r"\bckd[\s-]?epi\b.*\b2021\b|\b2021\b.*\bckd[\s-]?epi\b", re.IGNORECASE),
+        "CKD-EPI 2021",
+    ),
+    (re.compile(r"\bckd[\s-]?epi\b", re.IGNORECASE), "CKD-EPI (year not stated)"),
+)
+
+
+def egfr_equation(printed_name: str) -> str:
+    """The eGFR equation a printed test name states, or ``"unspecified"``.
+
+    Lab reports carry no LOINC code, so the printed name is the only source; a name that does
+    not state the equation is not assumed to use any particular one.
+    """
+    for pattern, equation in _EGFR_EQUATIONS:
+        if pattern.search(printed_name):
+            return equation
+    return "unspecified"

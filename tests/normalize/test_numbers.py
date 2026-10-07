@@ -4,7 +4,12 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from medgraph.normalize.numbers import NumberLocale, NumberParseError, parse_number
+from medgraph.normalize.numbers import (
+    NumberLocale,
+    NumberParseError,
+    decimal_separator_evidence,
+    parse_number,
+)
 
 
 @pytest.mark.parametrize(
@@ -80,3 +85,19 @@ def test_numbers_formatted_by_locale_round_trip(
     value: Decimal, locale: NumberLocale, grouped: bool
 ) -> None:
     assert parse_number(_format(value, locale, grouped), locale).value == value
+
+
+@pytest.mark.parametrize(
+    ("text", "locales"),
+    [
+        ("Creatinina 1,32 mg/dL (0,70-1,20)", {"it"}),
+        ("HGB 13.5 g/dL", {"en"}),
+        ("eGFR 45 mL/min/1,73 m2", {"it"}),
+        ("Ferritin 1.200 ng/mL", set()),  # three digits: thousands or decimals
+        ("Glucose 98 mg/dL [70 - 99]", set()),
+        ("Data: 26.02.2023 ore 10.30", set()),  # dates and clock times are not numbers
+        ("1,5 and 2.5", {"it", "en"}),
+    ],
+)
+def test_decimal_separator_evidence(text: str, locales: set[str]) -> None:
+    assert decimal_separator_evidence(text) == locales

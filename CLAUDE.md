@@ -19,8 +19,8 @@ make synthea-dev  # regenerate the dev cohort (ARGS=--force to replace it)
 make test-synthea # opt-in: parse all of dev-1000 and check nothing in scope is dropped
 make profile      # rewrite docs/data/synthea-dev-1000-profile.md
 make normalization  # rewrite docs/data/synthea-dev-1000-normalization.md
-make extract-rules SPLIT=dev|test  # rule-based extraction baseline -> docs/results/
-make extract-llm SPLIT=dev|test OLLAMA_MODELS=/Volumes/T7/ollama-models  # hours, runs in the background
+make extract-rules SPLIT=dev|test [RULES=rules-r2]  # rule-based extraction baseline -> docs/results/
+make extract-llm SPLIT=dev|test [LLM=qwen35-9b-r2] OLLAMA_MODELS=/Volumes/T7/ollama-models  # hours, in the background
 make review       # re-run notebooks/review.ipynb in place (the user's review notebook)
 make report       # figures from saved metrics + LaTeX report -> docs/reports/build/ (lualatex)
 uv run pre-commit run --files <paths>   # hooks without committing
@@ -60,5 +60,5 @@ uv run pre-commit run --files <paths>   # hooks without committing
 - Analytes in scope live in `normalize/analytes.py`; a non-trivial conversion factor needs a cited source (a test enforces this).
 - Tests come before building on units, calculations, rules and parsing. Opt-in markers: `llm`, `synthea`, `mimic`.
 - Experiments are config-driven: a YAML under `configs/`, outputs under `$MEDGRAPH_DATA_DIR/runs/`, with the config snapshot, seed and versions recorded next to the results.
-- Extraction evaluation: tune prompts and rules on the `dev` split only. A test-split run is reported whatever it shows, and a new prompt version gets a new test run, never a selection among several. Bump `PROMPT_VERSION` whenever the prompt or schema changes.
+- Extraction evaluation: tune prompts and interpretation only on development data, which since Phase 1e means all of reports-v1. A held-out test set (now reports-v2) is run once per pipeline version and reported whatever it shows; never select among several runs. A test set that has been examined becomes development data, and the next estimate needs a fresh set. Bump `PROMPT_VERSION` whenever the prompt or schema changes.
 - Local LLM runs: start them with `make extract-llm`, and run nothing heavy (pytest, notebooks, other models) while one is going. On 16 GB this has crashed the session before. Check progress from the log and the count of prediction files.

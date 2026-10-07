@@ -4,7 +4,14 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from medgraph.normalize.analytes import ANALYTES, BY_KEY, BY_LOINC, Analyte, analyte_for_loinc
+from medgraph.normalize.analytes import (
+    ANALYTES,
+    BY_KEY,
+    BY_LOINC,
+    Analyte,
+    analyte_for_loinc,
+    egfr_equation,
+)
 
 CONVERSIONS = [(a.key, unit) for a in ANALYTES for unit in a.to_canonical]
 
@@ -60,3 +67,19 @@ def test_lookup_by_loinc() -> None:
     assert analyte.loinc["33914-3"] == "MDRD"
     assert analyte_for_loinc("8302-2") is None
     assert analyte_for_loinc(None) is None
+
+
+@pytest.mark.parametrize(
+    ("name", "equation"),
+    [
+        ("eGFR (MDRD)", "MDRD"),
+        ("VFG (stima MDRD)", "MDRD"),
+        ("GFR stimato MDRD", "MDRD"),
+        ("eGFR CKD-EPI 2021", "CKD-EPI 2021"),
+        ("eGFR (CKD-EPI)", "CKD-EPI (year not stated)"),
+        ("eGFR", "unspecified"),
+        ("Velocità filtraz. glomerulare", "unspecified"),
+    ],
+)
+def test_egfr_equation_is_read_from_the_printed_name(name: str, equation: str) -> None:
+    assert egfr_equation(name) == equation
