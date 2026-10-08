@@ -188,6 +188,27 @@ class _BundleParser:
     def encounter_id(self, resource: Mapping[str, Any]) -> str | None:
         return self.resolve_id(resource.get("encounter"), resource, "Encounter")
 
+    def reason_condition_ids(self, resource: Mapping[str, Any]) -> tuple[str, ...]:
+        """Conditions a resource gives as its reason (``reasonReference``).
+
+        FHIR also allows an Observation, DiagnosticReport or DocumentReference as a reason;
+        those are reported and not read, since only a condition can be treated.
+        """
+        ids = []
+        for reference in resource.get("reasonReference", []):
+            target = reference.get("reference") if isinstance(reference, Mapping) else None
+            found = self.by_reference.get(target) if isinstance(target, str) else None
+            if found is not None and found["resourceType"] != "Condition":
+                self.issue(
+                    "unsupported_value",
+                    "info",
+                    f"reasonReference to a {found['resourceType']} not read",
+                    resource,
+                )
+            elif (rid := self.resolve_id(reference, resource, "Condition")) is not None:
+                ids.append(rid)
+        return tuple(dict.fromkeys(ids))
+
     def check_subject(self, resource: Mapping[str, Any]) -> None:
         """A subject must be the bundle's patient (the only Patient a bundle may hold)."""
         subject = resource.get("subject") or resource.get("patient")
@@ -357,6 +378,7 @@ class _BundleParser:
             dosage_text=dosage.get("text"),
             as_needed=dosage.get("asNeededBoolean"),
             encounter_id=self.encounter_id(r),
+            reason_condition_ids=self.reason_condition_ids(r),
         )
 
     def observation(self, r: Resource) -> Observation:
@@ -421,6 +443,7 @@ class _BundleParser:
             status=r.get("status"),
             performed=performed,
             encounter_id=self.encounter_id(r),
+            reason_condition_ids=self.reason_condition_ids(r),
         )
 
     def diagnostic_report(self, r: Resource) -> DiagnosticReport:

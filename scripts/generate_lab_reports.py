@@ -534,6 +534,12 @@ def patient_tag(record: PatientRecord) -> str:
 _TAG_LINE = re.compile(r"^(?:Patient ID|ID paziente): (?P<tag>[0-9a-f]{8})\b", re.MULTILINE)
 
 
+def printed_patient_tag(text: str) -> str | None:
+    """The patient tag printed in one report's header, if any."""
+    m = _TAG_LINE.search(text)
+    return m["tag"] if m else None
+
+
 def printed_patient_tags(report_dir: Path) -> frozenset[str]:
     """Patient tags printed in the headers of an existing report set."""
     return frozenset(

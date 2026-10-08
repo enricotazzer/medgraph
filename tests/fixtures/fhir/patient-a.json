@@ -415,7 +415,12 @@
               "display": "lisinopril 10 MG Oral Tablet"
             }
           ]
-        }
+        },
+        "reasonReference": [
+          {
+            "reference": "urn:uuid:cond-a2"
+          }
+        ]
       }
     },
     {

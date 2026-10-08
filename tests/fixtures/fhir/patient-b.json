@@ -166,7 +166,12 @@
         },
         "medicationReference": {
           "reference": "urn:uuid:medication-b1"
-        }
+        },
+        "reasonReference": [
+          {
+            "reference": "urn:uuid:cond-b1"
+          }
+        ]
       }
     }
   ]

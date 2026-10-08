@@ -87,6 +87,7 @@ def test_reads_fixture_patient(fhir_fixture_dir: Path) -> None:
 
     (med,) = record.medication_requests
     assert med.medication.code("http://www.nlm.nih.gov/research/umls/rxnorm") == "314076"
+    assert med.reason_condition_ids == ("cond-a2",)
     # Same text, but the report has no encounter, so the two are kept apart.
     assert len(record.notes) == 2
     assert {n.text for n in record.notes} == {"Assessment: chronic kidney disease stage 3."}
@@ -247,3 +248,39 @@ def test_procedure_performed_datetime_becomes_a_point_period() -> None:
     (parsed,) = parse_bundle(bundle(PATIENT, procedure), "s").procedures
     assert parsed.performed.start == parsed.performed.end
     assert parsed.performed.start is not None
+
+
+def test_reason_references_name_conditions() -> None:
+    condition = {
+        "resourceType": "Condition",
+        "id": "c1",
+        "subject": SUBJECT,
+        "code": {"coding": [{"system": SNOMED, "code": "271737000"}]},
+    }
+    reasons = [
+        {"reference": "urn:uuid:c1"},
+        {"reference": "urn:uuid:c1"},  # repeated: kept once
+        {"reference": "urn:uuid:o1"},  # an Observation as reason: allowed by FHIR, not read
+        {"reference": "urn:uuid:gone"},
+    ]
+    procedure = {
+        "resourceType": "Procedure",
+        "id": "pr1",
+        "subject": SUBJECT,
+        "code": {"coding": [{"system": SNOMED, "code": "73761001"}]},
+        "reasonReference": reasons,
+    }
+    medication = {
+        "resourceType": "MedicationRequest",
+        "id": "m1",
+        "subject": SUBJECT,
+        "medicationCodeableConcept": {"coding": [{"code": "310325"}]},
+        "reasonReference": [{"reference": "urn:uuid:c1"}],
+    }
+    record = parse_bundle(bundle(PATIENT, condition, observation("o1"), procedure, medication), "s")
+    assert record.procedures[0].reason_condition_ids == ("c1",)
+    assert record.medication_requests[0].reason_condition_ids == ("c1",)
+    assert [(i.code, i.severity) for i in record.issues] == [
+        ("unsupported_value", "info"),
+        ("unresolved_reference", "warning"),
+    ]

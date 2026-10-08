@@ -9,9 +9,10 @@ wheels/
 # Virtual environments
 .venv
 
-# Data never lives in the repository (see MEDGRAPH_DATA_DIR); these guard the default location.
-data/
-runs/
+# Data never lives in the repository (see MEDGRAPH_DATA_DIR); these guard the default location,
+# at the repository root only (docs/data/ holds committed aggregate reports).
+/data/
+/runs/
 *.jar
 
 # Local configuration and secrets

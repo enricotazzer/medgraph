@@ -230,6 +230,7 @@ class ReportRow(BaseModel):
     reference_low: Decimal | None = None  # canonical unit
     reference_high: Decimal | None = None
     method: str | None = None  # eGFR equation as the printed name states it
+    original: Quantity | None = None  # as printed (digits kept), with the unit's UCUM code
     detail: str | None = None
 
 
@@ -413,9 +414,8 @@ def _interpret_row(
     except NumberParseError as exc:
         return ReportRow(**base, status="unparseable_value", detail=str(exc))
 
-    conversion = convert_quantity(
-        analyte, Quantity(value=number.value, unit=unit_text or None, comparator=number.comparator)
-    )
+    printed = Quantity(value=number.value, unit=unit_text or None, comparator=number.comparator)
+    conversion = convert_quantity(analyte, printed)
     low = high = None
     if conversion.ucum is not None and row.reference_range:
         factor = analyte.to_canonical.get(conversion.ucum)
@@ -434,5 +434,6 @@ def _interpret_row(
         comparator=number.comparator,
         reference_low=low,
         reference_high=high,
+        original=printed.model_copy(update={"code": conversion.ucum}),
         detail=conversion.detail,
     )

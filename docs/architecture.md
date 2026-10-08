@@ -25,7 +25,7 @@ flowchart LR
 | --- | --- | --- |
 | `ingest` | Parse FHIR bundles and uploaded reports into typed models; keep a reference to each source. | Only for free-text/PDF extraction, validated against the schema |
 | `normalize` | LOINC mapping, UCUM units and conversions, reference ranges, timestamps. | No |
-| `graph` | Deterministic per-patient graph with typed edges, plus persistence. | No |
+| `graph` | Deterministic per-patient graph with typed edges (each with its basis), timeline, invariant checks, SQLite store and an offline HTML viewer (ADR 0005). | No |
 | `rules` | Guideline criteria as code; flags carry their evidence. | No |
 | `rag` | Hybrid retrieval over versioned sources, with chunk-level citations. | Embeddings only |
 | `agent` | Check whether notes acknowledge a finding; explanations in two registers and two languages. | Yes: language only, grounded in cited chunks |

@@ -83,3 +83,11 @@ class Settings(BaseSettings):
     @property
     def lab_reports_dir(self) -> Path:
         return self.data_dir / "lab_reports"
+
+    @property
+    def graphs_dir(self) -> Path:
+        return self.data_dir / "graphs"
+
+    @property
+    def views_dir(self) -> Path:
+        return self.data_dir / "views"

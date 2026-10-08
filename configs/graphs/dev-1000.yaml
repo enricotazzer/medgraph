@@ -1,0 +1,10 @@
+# Patient graphs for the development cohort (Phase 2). Synthetic data: a pipeline test.
+cohort: dev-1000
+# Lab reports filed in their patients' records (the patient tag printed in each header).
+# Rows come from the saved LLM transcriptions of the text reports, so no model is called and
+# no report is filed twice (text and PDF are the same report). They are re-interpreted with
+# the current code.
+reports:
+  - {extraction: qwen35-9b, split: dev}
+  - {extraction: qwen35-9b, split: test}
+  - {extraction: qwen35-9b-r2, split: test}

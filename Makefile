@@ -2,7 +2,7 @@
 # Extra arguments: make synthea-dev ARGS=--force
 
 .PHONY: setup lint format typecheck test test-synthea check synthea-pilot synthea-dev profile \
-	normalization extract-rules extract-llm report review
+	normalization extract-rules extract-llm graphs view report review
 
 setup:
 	uv sync
@@ -54,6 +54,15 @@ extract-rules:
 extract-llm:
 	scripts/dev/llm_run.sh $(LLM)-$(SPLIT) uv run python scripts/evaluate_extraction.py \
 		configs/extraction/$(LLM).yaml --split $(SPLIT) $(ARGS)
+
+# Patient graphs: build, check and store every patient (about 10 min, 1.3 GB for dev-1000).
+COHORT ?= dev-1000
+graphs:
+	uv run python scripts/build_graphs.py configs/graphs/$(COHORT).yaml $(ARGS)
+
+# One patient's page, for example: make view PATIENT=b475e58b (no PATIENT: suggestions)
+view:
+	uv run python scripts/view_patient.py $(COHORT) $(PATIENT) $(ARGS)
 
 # Technical report: figures from the saved metrics, then the PDF (docs/reports/build/).
 report:

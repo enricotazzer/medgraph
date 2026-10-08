@@ -536,14 +536,14 @@ def summarize(
 RESULT_SCRIPTS = ("evaluate_extraction.py", "generate_lab_reports.py", "lab_report_catalog.py")
 
 
-def code_digest(repo: Path = REPO_ROOT) -> str:
-    """Digest of the code that determines the results: the package and the evaluation scripts.
+def code_digest(repo: Path = REPO_ROOT, scripts: tuple[str, ...] = RESULT_SCRIPTS) -> str:
+    """Digest of the code that determines the results: the package and the given scripts.
 
     Results are often produced from uncommitted code, so the commit alone does not identify it;
     recomputing this digest on a later checkout shows whether that checkout is the same code.
     """
     package = (repo / "src" / "medgraph").rglob("*.py")
-    paths = [*package, *(repo / "scripts" / name for name in RESULT_SCRIPTS)]
+    paths = [*package, *(repo / "scripts" / name for name in scripts)]
     return content_digest({p.relative_to(repo).as_posix(): sha256_file(p) for p in paths})
 
 

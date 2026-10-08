@@ -195,6 +195,22 @@ def test_misplaced_rows_are_rejected_before_mapping() -> None:
     assert (row.status, row.value, row.analyte) == ("misplaced", None, None)
 
 
+def test_rows_keep_the_printed_quantity_with_its_digits() -> None:
+    creatinine, haemoglobin = interpret(
+        rows(("Creatinine", "117", "µmol/L", "44 - 80", "H"), ("Haemoglobin", "135", "g/L")),
+        GB_REPORT,
+        "r",
+    ).rows
+    assert creatinine.original is not None
+    assert (creatinine.original.value, creatinine.original.unit) == (Decimal(117), "µmol/L")
+    assert creatinine.original.code == "umol/L"
+    assert haemoglobin.original is not None
+    assert (haemoglobin.original.value, haemoglobin.original.code) == (Decimal(135), "g/L")
+    it_row = interpret(rows(("Emoglobina", "13,5", "g/dL")), IT_REPORT, "r").rows[0]
+    assert it_row.original is not None
+    assert it_row.original.value.as_tuple().exponent == -1  # one printed decimal
+
+
 def test_egfr_rows_carry_the_equation_their_name_states() -> None:
     text = "Data prelievo: 07/03/2025\nVFG (stima MDRD)  45  mL/min/1,73 m²  (> 60)\neGFR  45\n"
     stated, unstated = interpret(

@@ -136,6 +136,7 @@ class MedicationRequest(_Record):
     dosage_text: str | None = None
     as_needed: bool | None = None
     encounter_id: str | None = None
+    reason_condition_ids: tuple[str, ...] = ()  # conditions named in reasonReference
 
 
 class ObservationComponent(_Record):
@@ -170,6 +171,7 @@ class Procedure(_Record):
     status: str | None = None
     performed: Period = Period()
     encounter_id: str | None = None
+    reason_condition_ids: tuple[str, ...] = ()  # conditions named in reasonReference
 
 
 class Note(_Record):

@@ -6,8 +6,11 @@ repos:
     hooks:
       - id: check-yaml
       - id: check-toml
+      # Vendored libraries are pinned by hash: never rewrite them.
       - id: end-of-file-fixer
+        exclude: ^src/medgraph/graph/static/vendor/
       - id: trailing-whitespace
+        exclude: ^src/medgraph/graph/static/vendor/
       - id: check-merge-conflict
       - id: check-added-large-files
         args: ["--maxkb=500"]
