@@ -70,6 +70,7 @@ report:
 	cd docs/reports && latexmk -lualatex -interaction=nonstopmode -halt-on-error -outdir=build \
 		medgraph-phase0-1-report.tex
 
-# Re-run the review notebook in place (needs the T7 mounted).
+# Re-run the review notebook in place (needs the T7 mounted). nbconvert is in the notebook
+# group, so this runs in exactly the environment of the notebook's .venv kernel.
 review:
-	uv run --with nbconvert jupyter nbconvert --to notebook --execute --inplace notebooks/review.ipynb
+	uv run jupyter nbconvert --to notebook --execute --inplace notebooks/review.ipynb
