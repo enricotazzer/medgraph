@@ -11,8 +11,10 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10
+      # Actions are pinned by commit: setup-uv publishes no major-version tag (v10 does not resolve),
+      # and a commit cannot be moved the way a tag can.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - run: uv sync --locked
       # Tests marked llm, synthea or mimic are skipped here: they need local resources.
       - run: make check
