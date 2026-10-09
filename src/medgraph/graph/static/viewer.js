@@ -48,6 +48,8 @@
   }
   const isoDate = (t) => new Date(t * 1000).toISOString().slice(0, 10);
   const shorten = (text, n) => (text.length > n ? text.slice(0, n - 1) + "…" : text);
+  // SNOMED CT's semantic tag, e.g. "(disorder)": dropped from graph labels only.
+  const SEMANTIC_TAG = /\s*\((?:disorder|finding|procedure|situation|physical object|regime\/therapy|observable entity)\)$/;
 
   // --- header ---------------------------------------------------------------------------
   const p = D.patient;
@@ -189,8 +191,8 @@
     elements.push({
       group: "nodes",
       data: {
-        id: c.id, label: shorten(c.label, 34), kind: c.kind, color: color(c.kind),
-        size: 14 + 7 * Math.log2(1 + c.count), active: c.active ? 1 : 0, empty: c.count === 0 && c.kind === "analyte" ? 1 : 0,
+        id: c.id, label: shorten(c.label.replace(SEMANTIC_TAG, ""), 44), kind: c.kind, color: color(c.kind),
+        size: Math.min(10 + 4 * Math.log2(1 + c.count), 24), active: c.active ? 1 : 0, empty: c.count === 0 && c.kind === "analyte" ? 1 : 0,
       },
       position: { x: 400 * Math.cos(angle), y: 400 * Math.sin(angle) },
     });
@@ -207,10 +209,12 @@
       { selector: "node", style: {
         width: "data(size)", height: "data(size)", label: "data(label)",
         "background-color": "data(color)", "border-color": "data(color)", "border-width": 0,
-        "font-size": 9, "font-family": cssVar("--font") || "sans-serif", color: cssVar("--ink"),
-        "text-valign": "bottom", "text-margin-y": 3, "text-wrap": "ellipsis", "text-max-width": 140,
-        "min-zoomed-font-size": 5,
+        "font-size": 12, "font-family": cssVar("--font") || "sans-serif", color: cssVar("--ink"),
+        "text-valign": "center", "text-halign": "right", "text-margin-x": 5, "text-wrap": "ellipsis", "text-max-width": 205,
+        "text-background-color": cssVar("--panel"), "text-background-opacity": 0.85, "text-background-padding": 1,
+        "min-zoomed-font-size": 6,
       } },
+      { selector: "node.network", style: { "text-valign": "bottom", "text-halign": "center", "text-margin-x": 0, "text-margin-y": 3, "text-max-width": 150 } },
       // An analyte the guideline table links to but the record never measured: hollow.
       { selector: "node[empty = 1]", style: { "background-opacity": 0.12, "border-width": 2 } },
       { selector: "node[kind = 'condition'][active = 1]", style: { "border-width": 2, "border-color": cssVar("--k-condition"), "border-opacity": 0.5 } },
@@ -229,13 +233,58 @@
     if (showUnlinked || n.hasClass("found")) return true;
     return n.connectedEdges().some((e) => shown[e.source().data("kind")] && shown[e.target().data("kind")]);
   }
+  // Columns read left to right: what was measured, what is wrong, what treats it. Within a
+  // column, nodes sit near the concepts they link to (mean row of their neighbours).
+  const COLUMNS = ["lab_report", "analyte", "condition", "medication", "procedure", "observation", "encounter", "note"];
+  const COLUMN_WIDTH = 250;
+  let layoutName = "columns";
+  function columnPositions(nodes) {
+    const rows = new Map();
+    const byKind = new Map(COLUMNS.map((k) => [k, []]));
+    nodes.forEach((n) => byKind.get(n.data("kind")).push(n));
+    const firstDate = (n) => concepts.get(n.id()).first || "9999";
+    const meanRow = (n) => {
+      const placed = n.neighborhood("node:visible").filter((m) => rows.has(m.id()));
+      if (!placed.length) return Infinity;
+      return placed.reduce((sum, m) => sum + rows.get(m.id()), 0) / placed.length;
+    };
+    // Conditions first, by first date; then the columns that link to them; then the rest.
+    const order = ["condition", "medication", "procedure", "analyte", "lab_report", "observation", "encounter", "note"];
+    for (const kind of order) {
+      const column = byKind.get(kind);
+      const key = kind === "condition" ? (n) => firstDate(n) : meanRow;
+      const keyed = column.map((n) => [key(n), concepts.get(n.id()).label, n]);
+      keyed.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : a[1].localeCompare(b[1])));
+      keyed.forEach(([, , n], i) => rows.set(n.id(), i));
+    }
+    const used = COLUMNS.filter((k) => byKind.get(k).length);
+    // Row spacing that fills the panel's shape: tall columns get tight rows, short ones air.
+    const box = byId("cy").getBoundingClientRect();
+    const longest = Math.max(1, ...used.map((k) => byKind.get(k).length));
+    const width = (used.length - 1) * COLUMN_WIDTH + 200;
+    const row = Math.max(26, Math.min(64, ((box.height / box.width) * width) / longest));
+    const positions = {};
+    nodes.forEach((n) => {
+      positions[n.id()] = { x: used.indexOf(n.data("kind")) * COLUMN_WIDTH, y: rows.get(n.id()) * row };
+    });
+    return positions;
+  }
   function relayout() {
     cy.batch(() => cy.nodes().forEach((n) => n.style("display", visible(n) ? "element" : "none")));
-    cy.elements(":visible").layout({
-      name: "cose", animate: false, randomize: false, fit: true, padding: 24,
-      nodeDimensionsIncludeLabels: true, componentSpacing: 60,
-      nodeRepulsion: () => 12000, idealEdgeLength: () => 100, nodeOverlap: 12, numIter: 1500,
-    }).run();
+    const shownNodes = cy.nodes(":visible");
+    if (layoutName === "columns") {
+      cy.batch(() => cy.nodes().removeClass("network"));
+      const positions = columnPositions(shownNodes);
+      shownNodes.layout({ name: "preset", positions: (n) => positions[n.id()], fit: true, padding: 20 }).run();
+    } else {
+      cy.batch(() => cy.nodes().addClass("network"));
+      cy.elements(":visible").layout({
+        name: "cose", animate: false, randomize: false, fit: true, padding: 24,
+        nodeDimensionsIncludeLabels: true, componentSpacing: 30,
+        nodeRepulsion: () => 4500, idealEdgeLength: () => 60, nodeOverlap: 8, numIter: 1500,
+      }).run();
+    }
+    cy.zoom(Math.min(cy.zoom(), 1.4));
   }
   function selectConcept(id) {
     const node = cy.getElementById(id);
@@ -273,6 +322,11 @@
   const unlinked = h("input", { type: "checkbox" });
   unlinked.addEventListener("change", () => { showUnlinked = unlinked.checked; relayout(); });
   toggles.append(h("label", { title: "Concepts with no link to another shown concept; all of them are on the timeline" }, unlinked, "Show unlinked concepts"));
+  const layoutSwitch = h("select", { "aria-label": "Graph layout" },
+    h("option", { value: "columns" }, "Columns: measured · condition · treatment"),
+    h("option", { value: "network" }, "Network (force-directed)"));
+  layoutSwitch.addEventListener("change", () => { layoutName = layoutSwitch.value; relayout(); });
+  toggles.append(h("label", {}, "Layout ", layoutSwitch));
   byId("search").addEventListener("input", (ev) => {
     const q = ev.target.value.trim().toLowerCase();
     cy.batch(() => {
@@ -323,17 +377,21 @@
     const out = u.root.parentElement.previousSibling.querySelector(".readout");
     if (i === null || i === undefined) { out.textContent = ""; return; }
     const pt = s.points[i];
-    const fromReport = pt.node.startsWith("report_row:");
-    out.textContent = `${isoDate(pt.t)}  ${pt.cmp || ""}${pt.value}${fromReport ? "  (report only)" : pt.rows.length ? "  (also on a report)" : ""}`;
+    const fromReport = !s.computed && pt.node.startsWith("report_row:");
+    const note = s.computed ? `  (${pt.detail})` : fromReport ? "  (report only)" : pt.rows.length ? "  (also on a report)" : "";
+    out.textContent = `${isoDate(pt.t)}  ${pt.cmp || ""}${pt.value}${note}`;
   }
   function makeChart(s) {
     const label = h("div", { class: "chart-label" },
-      h("div", {}, s.label), h("div", { class: "unit" }, `${s.unit} · ${s.points.length} value(s)`), h("div", { class: "readout" }));
+      h("div", {}, s.label),
+      h("div", { class: "unit" }, `${s.unit} · ${s.points.length} value(s)${s.computed ? " · one per usable creatinine" : ""}`),
+      h("div", { class: "readout" }));
     const holder = h("div", { class: "chart" });
     byId("charts").append(h("div", { class: "chart-row" }, label, holder));
     const xs = s.points.map((pt) => pt.t);
-    const recorded = s.points.map((pt) => (pt.node.startsWith("report_row:") ? null : pt.v));
-    const reportOnly = s.points.map((pt) => (pt.node.startsWith("report_row:") ? pt.v : null));
+    const recorded = s.points.map((pt) => (!s.computed && pt.node.startsWith("report_row:") ? null : pt.v));
+    const reportOnly = s.points.map((pt) => (!s.computed && pt.node.startsWith("report_row:") ? pt.v : null));
+    const lineColor = s.computed ? cssVar("--computed") : color("analyte");
     const ink = cssVar("--ink-2");
     const grid = { stroke: cssVar("--line"), width: 1 };
     const u = new uPlot({
@@ -349,7 +407,7 @@
       ],
       series: [
         {},
-        { label: "value", stroke: color("analyte"), width: 1.5, spanGaps: true, points: { show: true, size: 5, fill: color("analyte") } },
+        { label: "value", stroke: lineColor, width: 1.5, spanGaps: true, points: { show: true, size: 5, fill: lineColor } },
         { label: "report only", stroke: color("lab_report"), width: 0, paths: () => null, points: { show: true, size: 7, fill: color("lab_report") } },
       ],
       hooks: {
@@ -511,6 +569,71 @@
     notes.append(h("li", {}, note.text,
       note.nodes.length ? h("button", { type: "button", onclick: () => showList(note.text, note.nodes) }, "show") : null));
   }
+  // --- follow-up flags (medgraph.rules) -------------------------------------------------
+  const RULE_NAMES = {
+    "ckd-criteria": "CKD criteria (KDIGO 2024)",
+    "anaemia-criteria": "Anaemia, most recent haemoglobin (WHO 2024)",
+    "ckd-gfr-follow-up": "GFR test within 12 months (KDIGO 2024)",
+    "ckd-albuminuria-follow-up": "Albuminuria test within 12 months (KDIGO 2024)",
+    "ckd-haemoglobin-follow-up": "Haemoglobin test in CKD (KDIGO 2012)",
+    "metformin-egfr": "Metformin and eGFR (drug label)",
+    "epoetin-haemoglobin-monthly": "Haemoglobin test on epoetin alfa (drug label)",
+  };
+  const STATUS_TEXT = { met: "met", not_met: "not met", not_assessable: "not assessable" };
+  function sourceDetails(ids) {
+    return ids.map((id) => {
+      const src = (D.rule_sources || {})[id];
+      return src ? h("details", {}, h("summary", {}, src.citation), h("div", { class: "quote" }, `“${src.quote}”`)) : null;
+    });
+  }
+  function evidenceList(evidence) {
+    return h("ul", {}, evidence.map((e) => h("li", {},
+      h("a", { href: "#", onclick: (ev) => { ev.preventDefault(); showRecord(e.node, false); } }, `${e.date}: ${e.label}`),
+      e.value ? ` · ${e.value}` : "",
+      e.note ? h("div", { class: "muted" }, e.note) : null)));
+  }
+  if (D.rules) {
+    const r = D.rules;
+    const panel = byId("flags-panel");
+    panel.hidden = false;
+    const flagsList = r.flags || [];
+    const head = [
+      h("h2", {}, flagsList.length ? `Follow-up flags (${flagsList.length})` : "Follow-up flags"),
+      h("p", { class: "muted" }, `Evaluated as of ${r.as_of} (${r.ruleset}). A flag says what the record shows and cites its source; it is not a diagnosis.`),
+    ];
+    if (!r.evaluated) head.push(h("p", {}, r.note || "Not evaluated."));
+    else if (!flagsList.length) head.push(h("p", {}, "No follow-up flags."));
+    const cards = flagsList.map((f) => h("div", { class: "flag" },
+      h("h3", {}, f.title),
+      h("p", {}, f.statement),
+      f.evidence.length ? [h("div", { class: "muted" }, "Evidence"), evidenceList(f.evidence)] : null,
+      sourceDetails(f.sources),
+      f.limitations.length ? h("p", { class: "lim" }, "Limitations: " + f.limitations.join(" ")) : null));
+    const rows = (r.assessments || []).map((a) => h("tr", {},
+      h("td", {}, RULE_NAMES[a.rule] || a.rule),
+      h("td", { class: `status-${a.status}` }, STATUS_TEXT[a.status] || a.status),
+      h("td", {}, a.summary,
+        a.reason ? h("div", { class: "muted" }, a.reason) : null,
+        a.evidence.length ? h("details", {}, h("summary", {}, `evidence (${a.evidence.length})`), evidenceList(a.evidence)) : null,
+        a.sources.length ? h("details", {}, h("summary", {}, "sources"), sourceDetails(a.sources)) : null,
+        a.limitations.length ? h("div", { class: "lim" }, "Limitations: " + a.limitations.join(" ")) : null)));
+    const notesList = r.notes || [];
+    const notes = notesList.length ? h("details", { class: "notes" },
+      h("summary", {}, `Label notes (${notesList.length})`),
+      h("p", { class: "muted" }, "What a drug label says about a situation this record shows. A note has no threshold or interval to check: it is not a flag."),
+      notesList.map((n) => h("div", { class: "flag note" },
+        h("h3", {}, n.title),
+        h("p", {}, n.statement),
+        n.evidence.length ? [h("div", { class: "muted" }, "Evidence"), evidenceList(n.evidence)] : null,
+        sourceDetails(n.sources),
+        n.limitations.length ? h("p", { class: "lim" }, "Limitations: " + n.limitations.join(" ")) : null))) : null;
+    const checked = r.evaluated ? h("details", {},
+      h("summary", {}, "What medgraph checked"),
+      h("p", { class: "muted" }, "For the follow-up checks, met means a test is overdue."),
+      h("table", { class: "checks" }, h("tbody", {}, rows))) : null;
+    panel.replaceChildren(...[...head, ...cards, notes, checked].filter(Boolean));
+  }
+
   const issues = byId("issues");
   if (!D.issues.length) issues.append(h("li", { class: "muted" }, "None."));
   for (const issue of D.issues) issues.append(h("li", {}, issue));

@@ -55,7 +55,12 @@ def by_family(metrics: dict[str, Any], numerator: str, denominator: str) -> dict
     return {f: (n / d if d else float("nan")) for f, (n, d) in sums.items()}
 
 
-def bars(ax: Any, series: dict[str, tuple[dict[str, float], str]], families: list[str]) -> None:
+def bars(
+    ax: Any,
+    series: dict[str, tuple[dict[str, float], str]],
+    families: list[str],
+    held_out: set[str] = HELD_OUT,
+) -> None:
     x = np.arange(len(families))
     width = 0.8 / len(series)
     for i, (label, (rates, color)) in enumerate(series.items()):
@@ -64,7 +69,7 @@ def bars(ax: Any, series: dict[str, tuple[dict[str, float], str]], families: lis
         drawn.set_label(label)
         text = ["n/a" if np.isnan(v) else f"{v:.0f}" for v in values]
         ax.bar_label(drawn, labels=text, fontsize=6, color=INK_2, padding=1.5)
-    names = [f.replace("_", "-") + ("\n(held out)" if f in HELD_OUT else "") for f in families]
+    names = [f.replace("_", "-") + ("\n(held out)" if f in held_out else "") for f in families]
     ax.set_xticks(x, names, fontsize=7)
     ax.set_ylim(0, 112)
     ax.set_yticks([0, 25, 50, 75, 100])
@@ -95,7 +100,31 @@ def test_by_family(runs: Path) -> Path:
         ax.set_ylabel("% of rows")
     legend(fig, axes[0])
     path = OUT / "extraction-test-by-family.pdf"
-    fig.savefig(path)
+    fig.savefig(path, metadata={"CreationDate": None})  # same bytes on every run
+    plt.close(fig)
+    return path
+
+
+def r2_by_family(runs: Path) -> Path:
+    """reports-v2 (fresh test set, Phase 1e): every family is test data; only vertical is new."""
+    llm, rules = load(runs, "qwen35-9b-r2", "test"), load(runs, "rules-r2", "test")
+    families = [*FAMILIES, "vertical"]
+    panels = [
+        ("Row recall", "matched", "truth_rows"),
+        ("End-to-end, seen names", "end_to_end_seen_ok", "in_scope_seen"),
+    ]
+    fig, axes = plt.subplots(2, 1, figsize=(6.4, 4.0), sharex=True, sharey=True)
+    for ax, (title, num, den) in zip(axes, panels, strict=True):
+        series = {
+            "rules baseline": (by_family(rules, num, den), ORANGE),
+            "qwen3.5:9b, prompt v3": (by_family(llm, num, den), BLUE),
+        }
+        bars(ax, series, families, held_out={"vertical"})
+        ax.set_title(title, loc="left", fontsize=8.5)
+        ax.set_ylabel("% of rows")
+    legend(fig, axes[0])
+    path = OUT / "extraction-r2-by-family.pdf"
+    fig.savefig(path, metadata={"CreationDate": None})  # same bytes on every run
     plt.close(fig)
     return path
 
@@ -120,7 +149,7 @@ def dev_prompts(runs: Path) -> Path:
     axes[0].set_ylabel("% (development split, text)")
     legend(fig, axes[0])
     path = OUT / "extraction-dev-prompts.pdf"
-    fig.savefig(path)
+    fig.savefig(path, metadata={"CreationDate": None})  # same bytes on every run
     plt.close(fig)
     return path
 
@@ -130,7 +159,7 @@ def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     plt.switch_backend("Agg")
     plt.style.use(STYLE)
-    for path in (test_by_family(runs), dev_prompts(runs)):
+    for path in (test_by_family(runs), dev_prompts(runs), r2_by_family(runs)):
         print(f"wrote {path.relative_to(REPO_ROOT)}")
     return 0
 

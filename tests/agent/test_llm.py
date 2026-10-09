@@ -91,3 +91,23 @@ def test_unusable_output_raises(settings: Settings, content: str) -> None:
     client = OllamaClient(settings, transport=ollama({"message": {"content": content}}, []))
     with pytest.raises(LLMError):
         client.chat_json("s", "u", {})
+
+
+def test_embed_returns_vectors_in_order(settings: Settings) -> None:
+    seen: list[dict[str, Any]] = []
+    client = OllamaClient(
+        settings, model="bge-m3", transport=ollama({"embeddings": [[0.5, 1], [0, -1]]}, seen)
+    )
+    assert client.embed(["a", "b"]) == [[0.5, 1.0], [0.0, -1.0]]
+    assert seen == [{"model": "bge-m3", "input": ["a", "b"]}]
+    with pytest.raises(LLMError, match="expected 3 embeddings"):
+        client.embed(["a", "b", "c"])
+
+
+def test_model_digest_reads_an_untagged_name_as_latest(settings: Settings) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"models": [{"name": "bge-m3:latest", "digest": "d"}]})
+
+    transport = httpx.MockTransport(handler)
+    assert OllamaClient(settings, model="bge-m3", transport=transport).model_digest() == "d"
+    assert OllamaClient(settings, model="bge-m3:567m", transport=transport).model_digest() is None

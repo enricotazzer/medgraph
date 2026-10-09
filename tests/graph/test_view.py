@@ -91,3 +91,44 @@ def test_concepts_group_records_and_links_keep_their_basis(graph: PatientGraph) 
     assert not any(e[2] == "precedes" for e in model["edges"])
     (series,) = (s for s in model["series"] if s["analyte"] == "creatinine")
     assert [p["value"] for p in series["points"]] == ["1.4", "1.5", "1.6"]
+
+
+def test_page_carries_flags_their_sources_and_the_computed_series(graph: PatientGraph) -> None:
+    import datetime as dt
+
+    from medgraph.rules.flags import evaluate
+
+    rules = evaluate(graph, dt.date(2026, 1, 1)).model_dump(mode="json")
+    html = render_html(graph, build_timeline(graph), "", rules)
+    (data,) = DATA.findall(html)
+    model = json.loads(data)
+    assert model["rules"]["as_of"] == "2026-01-01"
+    cited = {s for a in model["rules"]["assessments"] for s in a["sources"]}
+    assert cited
+    assert cited <= set(model["rule_sources"])
+    assert all(v["quote"] for v in model["rule_sources"].values())
+    (computed,) = [s for s in model["series"] if s.get("computed")]
+    assert computed["label"].startswith("eGFR, CKD-EPI 2021 (computed")
+    # One computed value per usable creatinine; each links back to its creatinine record.
+    assert [p["node"] for p in computed["points"]] == [
+        "lab_result:obs-a1",
+        "lab_result:obs-a2",
+        "lab_result:obs-a3",
+    ]
+
+
+def test_notes_and_their_sources_reach_the_page(graph: PatientGraph) -> None:
+    import datetime as dt
+
+    from medgraph.rules.flags import evaluate
+    from medgraph.rules.model import Note
+
+    result = evaluate(graph, dt.date(2026, 1, 1))
+    note = Note(
+        rule="ras-inhibitor-nsaid", title="t", statement="s", sources=("label-zestril-nsaid",)
+    )
+    rules = result.model_copy(update={"notes": (note,)}).model_dump(mode="json")
+    (data,) = DATA.findall(render_html(graph, build_timeline(graph), "", rules))
+    model = json.loads(data)
+    assert model["rules"]["notes"][0]["rule"] == "ras-inhibitor-nsaid"
+    assert "lisinopril" in model["rule_sources"]["label-zestril-nsaid"]["quote"]

@@ -1,8 +1,15 @@
+from pathlib import Path
+
 from medgraph.normalize.analytes import BY_KEY
+from medgraph.rag.documents import load_documents
+from medgraph.rag.quotes import locator_pages
 from medgraph.rules.monitoring import MONITORING, monitoring_links
+
+DOCUMENTS = Path(__file__).parents[2] / "configs" / "knowledge" / "documents.yaml"
 
 
 def test_every_link_is_cited_and_names_a_registered_analyte() -> None:
+    stored = {d.id for d in load_documents(DOCUMENTS)}
     for code, (display, links) in MONITORING.items():
         assert code.isdigit()
         assert display
@@ -13,6 +20,8 @@ def test_every_link_is_cited_and_names_a_registered_analyte() -> None:
             assert link.locator
             assert link.quote
             assert link.locator in link.citation
+            assert link.stored in stored
+            assert locator_pages(link.locator)
 
 
 def test_ckd_stages_link_gfr_albuminuria_and_creatinine() -> None:

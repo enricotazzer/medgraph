@@ -18,13 +18,15 @@
   <p id="banner" class="banner" role="note"></p>
 </header>
 <main class="layout">
+  <section id="flags-panel" class="panel flags-panel" aria-label="Follow-up flags" hidden></section>
   <section class="panel graph-panel" aria-label="Graph of the record's concepts">
     <div class="toolbar">
       <div id="kind-toggles" class="toggles" role="group" aria-label="Kinds shown"></div>
       <input id="search" type="search" placeholder="Find a concept" aria-label="Find a concept">
     </div>
     <div id="cy" class="cy"></div>
-    <p class="hint">Each node groups records with the same code. Click a node or a link for its
+    <p class="hint">Each node groups records with the same code. Columns, left to right: lab
+      reports, analytes, conditions, medications, procedures. Click a node or a link for its
       records and sources. Drag to move, scroll to zoom.</p>
   </section>
   <aside id="details" class="panel details" aria-live="polite"></aside>

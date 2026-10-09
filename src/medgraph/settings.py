@@ -91,3 +91,7 @@ class Settings(BaseSettings):
     @property
     def views_dir(self) -> Path:
         return self.data_dir / "views"
+
+    @property
+    def knowledge_dir(self) -> Path:
+        return self.data_dir / "knowledge"

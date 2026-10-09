@@ -77,11 +77,22 @@ class OllamaClient:
             seconds=round(time.monotonic() - started, 2),
         )
 
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        """Embedding vectors for ``texts`` (Ollama ``/api/embed``), in order."""
+        response = self._http.post("/api/embed", json={"model": self.model, "input": texts})
+        response.raise_for_status()
+        vectors = response.json().get("embeddings")
+        if not isinstance(vectors, list) or len(vectors) != len(texts):
+            raise LLMError(f"expected {len(texts)} embeddings")
+        return [[float(x) for x in v] for v in vectors]
+
     def model_digest(self) -> str | None:
         """Digest of the installed model, recorded with every evaluation run."""
         response = self._http.get("/api/tags")
         response.raise_for_status()
+        # Ollama reads a name without a tag as ":latest".
+        names = {self.model} if ":" in self.model else {self.model, f"{self.model}:latest"}
         for model in response.json().get("models", []):
-            if model.get("name") == self.model or model.get("model") == self.model:
+            if model.get("name") in names or model.get("model") in names:
                 return str(model.get("digest"))
         return None

@@ -17,6 +17,7 @@ import forbid_data_files as hook
         "report.pdf",
         "tools/synthea-with-dependencies.jar",
         "graph.sqlite",
+        "knowledge/labels/0e6364a4/v27.xml",
     ],
 )
 def test_blocks_data_models_and_env_files(path: str) -> None:
@@ -33,6 +34,8 @@ def test_blocks_data_models_and_env_files(path: str) -> None:
         "tests/fixtures/reports/sample.pdf",
         "docs/data/synthea-dev-1000-profile.md",
         "docs/figures/architecture.pdf",
+        "configs/knowledge/labels-dev-1000.lock.json",
+        "tests/fixtures/spl/minimal.xml",
     ],
 )
 def test_allows_code_configs_fixtures_and_docs(path: str) -> None:

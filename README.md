@@ -30,9 +30,9 @@ Turns a person's medical records (conditions, medications, labs, procedures, enc
 | --- | --- | --- |
 | 0 | Project setup, reproducible Synthea cohort, data profile | done |
 | 1 | FHIR ingestion, lab normalization, lab-report extraction and its evaluation | done (ADR 0003, 0004; results in `docs/results/`) |
-| 2 | Patient knowledge graph and visualization | under review (ADR 0005; `make graphs`, `make view`) |
-| 3 | Guideline rules and follow-up flags | planned |
-| 4 | Retrieval-augmented explanations and drug knowledge | planned |
+| 2 | Patient knowledge graph and visualization | done (ADR 0005; `make graphs`, `make view`) |
+| 3 | Guideline rules and follow-up flags | done (ADR 0006; `make flags`) |
+| 4 | Retrieval-augmented explanations and drug knowledge | 4a under review: knowledge store, index, medication rules (ADR 0007; `make knowledge`); 4b planned |
 | 5 | Deployable app (API, frontend, Docker) | planned |
 | 6 | GNN research extension on MIMIC-IV | planned |
 | 7 | Documentation and results | planned |
@@ -49,7 +49,11 @@ make synthea-pilot      # 10-patient pilot cohort (about 10 s)
 make synthea-dev        # 1,000-patient development cohort (about 1 min, about 4 GB)
 make profile            # aggregate profile -> docs/data/synthea-dev-1000-profile.md
 make graphs             # every patient's graph, checked and stored in SQLite (about 10 min)
-make view PATIENT=...   # one patient's graph and timeline as an offline HTML page
+make flags              # CKD, anaemia and medication rules for every patient -> docs/data/synthea-dev-1000-flags.md
+make knowledge          # pinned guidelines and the cohort's DailyMed labels -> $MEDGRAPH_DATA_DIR/knowledge
+make index              # retrieval index (BM25); ARGS=--embed adds embeddings (local Ollama, background)
+make knowledge-report   # quotes, labels, index, retrieval checks -> docs/data/knowledge-dev-1000.md
+make view PATIENT=...   # one patient's graph, timeline and flags as an offline HTML page
 make review             # run the review notebook (notebooks/review.ipynb)
 ```
 

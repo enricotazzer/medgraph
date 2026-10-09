@@ -1,8 +1,10 @@
 """Which analytes a cited guideline uses to assess an in-scope condition.
 
 These links become the graph's ``monitored_by`` edges (condition to analyte). Each one names
-the guideline passage it rests on and quotes it verbatim. How often a test is due, and whether
-it is overdue, is a rule for Phase 3; nothing here raises a flag.
+the guideline passage it rests on and quotes it: fragments separated by "[...]", each checked
+against the stored text of the document named in ``stored``, on the pages the locator names
+(``medgraph.rag.quotes``; ``pytest --run-knowledge``). How often a test is due, and whether it
+is overdue, is a rule for Phase 3; nothing here raises a flag.
 
 Condition codes are listed one by one, because medgraph has no SNOMED CT hierarchy: a code
 that is not listed, such as a more specific anaemia, gets no link. Kidney failure on dialysis
@@ -30,7 +32,8 @@ class GuidelineLink:
     analyte: str  # registry key in medgraph.normalize.analytes
     source: str
     locator: str  # where in the source
-    quote: str  # verbatim
+    quote: str  # verbatim fragments separated by "[...]"
+    stored: str  # the knowledge-store document the quote is checked against
 
     @property
     def citation(self) -> str:
@@ -40,36 +43,41 @@ class GuidelineLink:
 CKD_GFR = GuidelineLink(
     analyte="egfr",
     source=KDIGO_2024,
-    locator="Practice Point 2.1.1",
+    locator="Practice Point 2.1.1, p. 688",
     quote=(
         "Assess albuminuria in adults, or albuminuria/proteinuria in children, and GFR at least "
         "annually in people with CKD."
     ),
+    stored="kdigo-2024-ckd-summary",
 )
 CKD_ACR = GuidelineLink(
     analyte="urine_acr",
     source=KDIGO_2024,
-    locator="Practice Points 2.1.1 and 1.3.1.1",
+    locator="Practice Points 2.1.1 and 1.3.1.1, p. 688",
     quote=(
         "Assess albuminuria in adults, or albuminuria/proteinuria in children, and GFR at least "
-        "annually in people with CKD. / Use the following measurements for initial testing of "
-        "albuminuria (in descending order of preference). [...] (i) urine ACR"
+        "annually in people with CKD. [...] Use the following measurements for initial testing "
+        "of albuminuria (in descending order of preference). [...] (i) urine ACR"
     ),
+    stored="kdigo-2024-ckd-summary",
 )
 CKD_CREATININE = GuidelineLink(
     analyte="creatinine",
     source=KDIGO_2024,
-    locator="Practice Point 1.2.2.1",
+    locator="Practice Point 1.2.2.1, p. 687",
     quote="Use serum creatinine (SCr) and an estimating equation for initial assessment of GFR.",
+    stored="kdigo-2024-ckd-summary",
 )
 ANAEMIA_HEMOGLOBIN = GuidelineLink(
     analyte="hemoglobin",
     source=WHO_2024,
-    locator="objective of the guideline",
+    locator="Objectives, p. 3",
     quote=(
-        "The objective of this guideline is to provide updated, clear, evidence-informed "
-        "normative statements on the use of haemoglobin concentrations to assess anaemia"
+        "The objective of this guideline is to provide updated, locally adaptable, clear, "
+        "evidence-informed normative statements on the use of haemoglobin concentrations to "
+        "assess anaemia"
     ),
+    stored="who-2024-haemoglobin",
 )
 
 CKD_LINKS = (CKD_GFR, CKD_ACR, CKD_CREATININE)

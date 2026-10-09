@@ -29,6 +29,7 @@ from medgraph.graph.schema import (
     time_key,
 )
 from medgraph.graph.timeline import Timeline
+from medgraph.rules.sources import SOURCES
 
 STATIC = files("medgraph.graph") / "static"
 VENDOR: dict[str, str] = {
@@ -194,10 +195,63 @@ def _script_json(value: Any) -> str:
     return text.replace("<", "\\u003c").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")
 
 
-def render_html(graph: PatientGraph, timeline: Timeline, banner: str) -> str:
-    """The patient's page. ``banner`` says where the data came from (e.g. synthetic)."""
+def rules_model(graph: PatientGraph, rules: dict[str, Any]) -> dict[str, Any]:
+    """Rule results for the page: flags, notes, assessments, the computed eGFR series, and the
+    text of every source they cite. ``rules`` is ``PatientRules`` as JSON (``medgraph.rules``)."""
+    cited = {
+        s
+        for kind in ("assessments", "flags", "notes")
+        for item in rules.get(kind, ())
+        for s in item.get("sources", ())
+    }
+    computed = rules.get("computed_egfr", ())
+    points = []
+    for c in computed:
+        start = node_data(graph, c["node"]).start
+        assert start is not None
+        points.append(
+            {
+                "t": display_time(start),
+                "v": float(c["value"]),
+                "value": str(c["whole"]),
+                "cmp": None,
+                "node": c["node"],
+                "rows": [],
+                "detail": f"from creatinine {c['creatinine']} mg/dL, age {c['age']}, {c['sex']}",
+            }
+        )
+    return {
+        "rules": rules,
+        "sources": {
+            k: {"citation": SOURCES[k].citation, "quote": SOURCES[k].quote}
+            for k in sorted(cited)
+            if k in SOURCES
+        },
+        "computed_series": {
+            "analyte": "egfr-computed",
+            "label": "eGFR, CKD-EPI 2021 (computed by medgraph)",
+            "unit": "mL/min/{1.73_m2}",
+            "computed": True,
+            "points": points,
+        }
+        if points
+        else None,
+    }
+
+
+def render_html(
+    graph: PatientGraph, timeline: Timeline, banner: str, rules: dict[str, Any] | None = None
+) -> str:
+    """The patient's page. ``banner`` says where the data came from (e.g. synthetic);
+    ``rules`` adds follow-up flags and the computed eGFR series."""
     model = view_model(graph, timeline)
     model["banner"] = banner
+    if rules is not None:
+        extra = rules_model(graph, rules)
+        model["rules"] = extra["rules"]
+        model["rule_sources"] = extra["sources"]
+        if extra["computed_series"]:
+            model["series"].append(extra["computed_series"])
     template = (STATIC / "viewer.html").read_text(encoding="utf-8")
     parts = {
         "/*CSP*/": CSP,

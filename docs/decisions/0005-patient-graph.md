@@ -92,7 +92,7 @@ One SQLite file per cohort, at `$MEDGRAPH_DATA_DIR/graphs/<cohort>.sqlite`.
 ### Viewer (`graph/view.py`, `graph/static/`)
 
 `make view PATIENT=<id prefix>` writes one self-contained HTML page per patient to `$MEDGRAPH_DATA_DIR/views/`.
-- **Graph:** concepts, meaning records grouped by code (a condition code, a medication, an analyte, a report). A concept opens a list of its records; a record opens its values, source references and links.
+- **Graph:** concepts, meaning records grouped by code (a condition code, a medication, an analyte, a report). A concept opens a list of its records; a record opens its values, source references and links. By default the concepts sit in columns, left to right: lab reports, analytes, conditions, medications, procedures. Conditions are ordered by first date, and every other concept sits near the concepts it links to. A force-directed layout is available as an option.
 - **Timeline:** event lanes and one chart per lab series, with zoom kept in sync. It opens on the span of the lab values, and "Full range" shows everything.
 - **Offline and private:**
   - Cytoscape.js 3.34.3 and uPlot 1.6.32 (MIT) are vendored and inlined. Their SHA-256 is pinned in code and checked before rendering. On download, they were also checked against the hashes cdnjs and jsDelivr publish.
@@ -135,7 +135,7 @@ From the [graph report](../data/synthea-dev-1000-graphs.md):
 - **Reports filed:** 156 reports in 156 patients' records. Rows by status: 279 ok, 915 unmapped (mostly out-of-scope tests), 13 eGFR in mL/min, and 2 misplaced.
   - 18 reports have no collection date: the 11 reports-v1 and 7 reports-v2 reports that Phase 1e refused. Their rows are off the timeline.
 - **All 243 usable report rows repeat exactly one FHIR result:** none matches no result, and none matches more than one. Every synthetic report was printed from FHIR values. So this checks extraction and matching together: no wrong value or date got through. It agrees independently with the extraction evaluation (ADR 0004), on reports-v1 and reports-v2 together.
-- **Determinism:** the first build used a random string-hash seed and the rebuild used `PYTHONHASHSEED=1`. Both gave the same store digest, `17bc4588…`. A unit test also checks the digest under two hash seeds.
+- **Determinism:** the first build used a random string-hash seed and the rebuild used `PYTHONHASHSEED=1`. Both gave the same store digest, `17bc4588…`. (Phase 4a corrected a quote on the `monitored_by` edges, ADR 0007; the rebuilt store's digest is `8f7276bd…`.) A unit test also checks the digest under two hash seeds.
 - **Viewer** (headless Chromium, driven by Playwright):
   - On a CKD and anaemia patient with a filed report, the script tapped every visible concept and link, opened a record and every data note, used search, clicked a chart value and zoomed. There were no script errors and no network requests.
   - The page for the patient with 6,900 records is 7 MB and renders in about 2 s.
@@ -153,7 +153,7 @@ From the [graph report](../data/synthea-dev-1000-graphs.md):
   - English only.
   - Undated (day-precision) values are drawn at noon UTC.
   - Unlinked concepts are hidden by default. A checkbox shows them, and search finds them; all of them stay on the timeline.
-  - The concept layout comes from a force-directed algorithm, so positions are not meaningful.
+  - In the column layout, the column says what a concept is; the row only places it near its links. Graph labels drop SNOMED CT's semantic tag ("(disorder)"); the side panel shows the full name.
 
 ## Consequences
 

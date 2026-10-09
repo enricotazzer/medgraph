@@ -9,6 +9,7 @@ import build_graphs as bg
 import view_patient as vp
 from medgraph.graph.store import GraphStore
 from medgraph.ingest.lab_report import PROMPT_VERSION
+from medgraph.rules.model import RULESET
 from medgraph.settings import Settings
 
 REPORT = """\
@@ -107,3 +108,22 @@ def test_builds_checks_stores_and_reports(
     assert vp.main(["tiny", "pat-b"]) == 0
     page = data_dir / "views" / "tiny" / "pat-b.html"
     assert "Synthetic data (Synthea)" in page.read_text(encoding="utf-8")
+
+
+def test_flags_are_evaluated_stored_and_reported(data_dir: Path, tmp_path: Path) -> None:
+    import evaluate_flags as ef
+
+    config = tmp_path / "tiny.yaml"
+    config.write_text("cohort: tiny\n", encoding="utf-8")
+    assert bg.main([str(config), "--out", str(tmp_path / "graphs.md")]) == 0
+    out = tmp_path / "flags.md"
+    assert ef.main(["tiny", "--as-of", "2026-01-01", "--out", str(out)]) == 0
+    report = out.read_text(encoding="utf-8")
+    # patient-b died in 2025: not evaluated.
+    assert "**2 patients; 1 evaluated.** 1 deceased patients are not evaluated" in report
+    assert "evaluated as of 2026-01-01" in report
+    with GraphStore(data_dir / "graphs" / "tiny.sqlite") as store:
+        stored = store.load_rules("pat-a", RULESET, "2026-01-01")
+        assert stored is not None
+        assert json.loads(stored)["evaluated"] is True
+        assert store.load_rules("pat-b", RULESET, "2026-01-01") is not None

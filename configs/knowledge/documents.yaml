@@ -1,0 +1,109 @@
+# Guidelines and reference pages that medgraph's rules cite (src/medgraph/rules/sources.py)
+# and that retrieval draws on. `make knowledge` fetches them into
+# $MEDGRAPH_DATA_DIR/knowledge/documents/. They are never committed: see each licence.
+#
+# - sha256 pins the exact file. A download that differs is refused, never stored.
+# - licence_quote is the document's own licence statement; the fetch checks that it occurs
+#   in the extracted text. US Government pages carry none (17 U.S.C. 105).
+# - page_patterns read the printed page number from a running header or footer (one capture
+#   group, tried line by line); page_labels: pdf uses the PDF's own page labels instead.
+# - running: other running headers and footers (searched in the first and last two lines of a
+#   page), left out of retrieval passages along with the page-number lines.
+# - bullets: glyphs the PDF's fonts map to letters at the start of a list item; the extracted
+#   text shows them as "•".
+# - reference_pages: the reference list, first and last printed page. The file is stored whole,
+#   but these pages give no retrieval passages: a citation list is not guidance.
+documents:
+  - id: kdigo-2024-ckd
+    title: >-
+      KDIGO 2024 Clinical Practice Guideline for the Evaluation and Management of Chronic
+      Kidney Disease
+    citation: Kidney Int 2024;105(4S):S117-S314, doi:10.1016/j.kint.2023.10.018
+    url: https://kdigo.org/wp-content/uploads/2024/03/KDIGO-2024-CKD-Guideline.pdf
+    format: pdf
+    sha256: b18db280f7dc889a1a99447b779c0312cd536f939a5180b38894a5d68e4410c0
+    licence: CC BY-NC-ND 4.0
+    licence_quote: >-
+      This is an open access article under the CC BY-NC-ND license
+      (http://creativecommons.org/licenses/by-nc-nd/4.0/).
+    page_patterns:
+      - '^(S\d{3}) Kidney International \(2024\) 105 \(Suppl 4S\), S117–S314$'
+      - '^Kidney International \(2024\) 105 \(Suppl 4S\), S117–S314 (S\d{3})$'
+    running: ['www\.kidney-international\.org']
+    reference_pages: [S295, S314]
+
+  - id: kdigo-2024-ckd-summary
+    title: >-
+      Executive summary of the KDIGO 2024 Clinical Practice Guideline for the Evaluation and
+      Management of Chronic Kidney Disease: known knowns and known unknowns
+    citation: Kidney Int 2024;105:684-701, doi:10.1016/j.kint.2023.10.016
+    url: https://kdigo.org/wp-content/uploads/2017/02/KDIGO-2024-CKD-Guideline-Executive-Summary.pdf
+    format: pdf
+    sha256: b1bc562dab89af2c591dadef71fa011098290338f914da5db2c8078d4111f537
+    licence: CC BY-NC-ND 4.0
+    licence_quote: >-
+      This is an open access article under the CC BY-NC-ND license
+      (http://creativecommons.org/licenses/by-nc-nd/4.0/).
+    page_patterns:
+      - '^(\d{3}) Kidney International \(2024\) 105, 684–701$'
+      - '^Kidney International \(2024\) 105, 684–701 (\d{3})$'
+    running:
+      - 'www\.kidney-international\.org'
+      - 'Executive summary of KDIGO 2024 CKD Guideline'
+    reference_pages: ['701', '701']
+
+  - id: kdigo-2012-anaemia
+    title: KDIGO Clinical Practice Guideline for Anemia in Chronic Kidney Disease
+    citation: Kidney Int Suppl 2012;2(4):279-335
+    url: https://kdigo.org/wp-content/uploads/2016/10/KDIGO-2012-Anemia-Guideline-English.pdf
+    format: pdf
+    sha256: bf5387e3041935078d05e181658c1839f0291d81120ed5b5f906ef6e27efe39f
+    licence: All rights reserved (KDIGO); stored for private research, quoted briefly
+    licence_quote: >-
+      by KDIGO. All rights reserved. Single photocopies may be made for personal use as
+      allowed by national copyright laws.
+    page_patterns:
+      - '^(\d{3}) Kidney International Supplements \(2012\)(?: 2)?, [\d–]+$'
+      - '^Kidney International Supplements \(2012\)(?: 2)?, [\d–]+ (\d{3})$'
+    running:
+      - '^chapter \d+$'
+      - '^(summary of recommendation statements|methods for guideline development)$'
+      - '^(biographic and disclosure information|references)$'
+      - '^& 2012 KDIGO$'
+    reference_pages: ['331', '335']
+    bullets: [K]
+
+  - id: who-2024-haemoglobin
+    title: >-
+      Guideline on haemoglobin cutoffs to define anaemia in individuals and populations
+    citation: Geneva, World Health Organization, 2024. ISBN 978-92-4-008854-2
+    url: https://iris.who.int/server/api/core/bitstreams/f9f74397-1440-478d-a63c-26f29a01552f/content
+    format: pdf
+    sha256: 315a402cb68eaa892b81ae02d41997c3bd4b3bb5d767a320fac544a30dbbab23
+    licence: CC BY-NC-SA 3.0 IGO
+    licence_quote: >-
+      This work is available under the Creative Commons Attribution-NonCommercial-ShareAlike
+      3.0 IGO licence (CC BY-NC-SA 3.0 IGO; https://creativecommons.org/licenses/by-nc-sa/3.0/igo).
+    page_labels: pdf
+    running:
+      - '^[ivxlc\d]+ Guideline on haemoglobin cutoffs to define anaemia in individuals and populations$'
+      - '^Guideline on haemoglobin cutoffs to define anaemia in individuals and populations [ivxlc\d]+$'
+      - '^(Executive summary|Summary of the evidence|Question \d+|Annex \d+\..*) [ivxlc\d]+$'
+      - '^[ivxlc\d]+$'
+    reference_pages: ['35', '39']
+
+  - id: niddk-egfr-adults
+    title: eGFR Equations for Adults (NIDDK)
+    citation: National Institute of Diabetes and Digestive and Kidney Diseases, web page
+    url: https://www.niddk.nih.gov/research-funding/research-programs/kidney-clinical-research-epidemiology/laboratory/glomerular-filtration-rate-equations/adults
+    format: html
+    sha256: 38250640ea9d5695090f18d5c9430c769c06a88e59471babec092fa24d9c870d
+    licence: U.S. Government work, not subject to copyright in the United States
+
+  - id: niddk-egfr-previous
+    title: Previous eGFR Equations for Reference (NIDDK)
+    citation: National Institute of Diabetes and Digestive and Kidney Diseases, web page
+    url: https://www.niddk.nih.gov/research-funding/research-programs/kidney-clinical-research-epidemiology/laboratory/glomerular-filtration-rate-equations/adults/previous
+    format: html
+    sha256: b2c996df5835d2fbdf6266bed872c67ec0b766935161029472394ce2026a9b9e
+    licence: U.S. Government work, not subject to copyright in the United States

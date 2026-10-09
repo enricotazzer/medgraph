@@ -14,6 +14,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 OPT_IN = {
     "llm": "needs a local Ollama server",
     "synthea": "needs a generated Synthea cohort",
+    "knowledge": "needs the knowledge store (make knowledge)",
     "mimic": "needs local MIMIC-IV, never in CI",
 }
 

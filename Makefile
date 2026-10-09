@@ -2,7 +2,7 @@
 # Extra arguments: make synthea-dev ARGS=--force
 
 .PHONY: setup lint format typecheck test test-synthea check synthea-pilot synthea-dev profile \
-	normalization extract-rules extract-llm graphs view report review
+	normalization extract-rules extract-llm graphs flags knowledge index knowledge-report view report review
 
 setup:
 	uv sync
@@ -60,15 +60,38 @@ COHORT ?= dev-1000
 graphs:
 	uv run python scripts/build_graphs.py configs/graphs/$(COHORT).yaml $(ARGS)
 
+# Follow-up rules for every stored patient (needs make graphs) -> docs/data/synthea-<cohort>-flags.md
+flags:
+	uv run python scripts/evaluate_flags.py $(COHORT) $(ARGS)
+
+# Knowledge store (Phase 4): pinned guideline documents and the cohort's DailyMed labels in
+# $MEDGRAPH_DATA_DIR/knowledge. ARGS=--lock chooses the labels again; ARGS=--offline verifies.
+knowledge:
+	uv run python scripts/fetch_knowledge.py $(COHORT) $(ARGS)
+
+# Retrieval index: passages + BM25 in seconds. Embeddings are a local-model run, so they go
+# through llm_run.sh: make index ARGS=--embed OLLAMA_MODELS=/Volumes/T7/ollama-models
+index:
+ifneq (,$(findstring --embed,$(ARGS)))
+	scripts/dev/llm_run.sh index-$(COHORT) uv run python -u scripts/build_index.py $(COHORT) $(ARGS)
+else
+	uv run python scripts/build_index.py $(COHORT) $(ARGS)
+endif
+
+# Knowledge report (quotes, labels, index, retrieval checks) -> docs/data/knowledge-<cohort>.md.
+# The dense retrieval checks need the local embedding model, so it runs through llm_run.sh.
+knowledge-report:
+	scripts/dev/llm_run.sh knowledge-report-$(COHORT) uv run python -u scripts/knowledge_report.py $(COHORT) $(ARGS)
+
 # One patient's page, for example: make view PATIENT=b475e58b (no PATIENT: suggestions)
 view:
 	uv run python scripts/view_patient.py $(COHORT) $(PATIENT) $(ARGS)
 
-# Technical report: figures from the saved metrics, then the PDF (docs/reports/build/).
+# Technical reports: figures from the saved metrics, then the PDFs (docs/reports/build/).
 report:
 	uv run python scripts/report_figures.py
 	cd docs/reports && latexmk -lualatex -interaction=nonstopmode -halt-on-error -outdir=build \
-		medgraph-phase0-1-report.tex
+		medgraph-phase0-1-report.tex medgraph-phase1e-2-addendum.tex
 
 # Re-run the review notebook in place (needs the T7 mounted). nbconvert is in the notebook
 # group, so this runs in exactly the environment of the notebook's .venv kernel.

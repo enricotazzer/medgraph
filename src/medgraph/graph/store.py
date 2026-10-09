@@ -5,6 +5,9 @@ JSON, and each graph is written in a single transaction that replaces the patien
 graph. Foreign keys make the database refuse an edge whose endpoint is not a node. A loaded
 graph is identical to the saved one: same attributes, same node and edge order, same
 :func:`graph_digest`.
+
+A ``rules`` table holds rule results (``medgraph.rules``) per patient, ruleset and evaluation
+date, as JSON. They are derived data, recomputed whenever the rules change.
 """
 
 import hashlib
@@ -46,6 +49,13 @@ CREATE TABLE IF NOT EXISTS edges (
     FOREIGN KEY (graph_id, dst) REFERENCES nodes (graph_id, node_id)
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS nodes_by_kind ON nodes (kind);
+CREATE TABLE IF NOT EXISTS rules (
+    patient_id TEXT NOT NULL,
+    ruleset TEXT NOT NULL,
+    as_of TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    PRIMARY KEY (patient_id, ruleset, as_of)
+);
 """
 
 
@@ -163,6 +173,25 @@ class GraphStore:
         if graph_digest(graph) != digest:
             raise StoreError(f"graph for patient {patient_id} does not match its digest")
         return graph
+
+    def save_rules(self, patient_id: str, ruleset: str, as_of: str, payload: str) -> None:
+        """Store one patient's rule results (JSON), replacing any for the same key."""
+        with self.db:
+            self.db.execute(
+                "INSERT OR REPLACE INTO rules VALUES (?, ?, ?, ?)",
+                (patient_id, ruleset, as_of, payload),
+            )
+
+    def load_rules(self, patient_id: str, ruleset: str, as_of: str) -> str | None:
+        row = self.db.execute(
+            "SELECT payload FROM rules WHERE patient_id = ? AND ruleset = ? AND as_of = ?",
+            (patient_id, ruleset, as_of),
+        ).fetchone()
+        return str(row[0]) if row else None
+
+    def clear_rules(self, ruleset: str, as_of: str) -> None:
+        with self.db:
+            self.db.execute("DELETE FROM rules WHERE ruleset = ? AND as_of = ?", (ruleset, as_of))
 
     def digests(self) -> dict[str, str]:
         """Patient ID to graph digest, sorted by patient ID."""

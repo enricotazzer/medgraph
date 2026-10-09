@@ -18,14 +18,16 @@ $MEDGRAPH_DATA_DIR/
       predictions/<format>/<id>.json  # LLM transcription + cache key (text hash, model, prompt)
       metrics.json   # scores per report, provenance (report set, git state, code and model digests)
     logs/            # background LLM runs (make extract-llm), cohort graph builds
-  graphs/<cohort>.sqlite   # patient graphs (make graphs): tables graphs, nodes, edges, meta
+  graphs/<cohort>.sqlite   # patient graphs (make graphs): tables graphs, nodes, edges, meta;
+                           # rule results per ruleset and date (make flags): table rules
   views/<cohort>/<patient>.html  # one patient's offline page (make view PATIENT=...)
 ```
 
 This folder holds only aggregate, synthetic reports:
 - the cohort profile ([`synthea-dev-1000-profile.md`](synthea-dev-1000-profile.md));
 - the outcome of ingestion and normalization over the whole cohort ([`synthea-dev-1000-normalization.md`](synthea-dev-1000-normalization.md));
-- the patient graphs built from it, with their invariant checks ([`synthea-dev-1000-graphs.md`](synthea-dev-1000-graphs.md), Phase 2, ADR 0005).
+- the patient graphs built from it, with their invariant checks ([`synthea-dev-1000-graphs.md`](synthea-dev-1000-graphs.md), Phase 2, ADR 0005);
+- the CKD and anaemia rules evaluated on every patient ([`synthea-dev-1000-flags.md`](synthea-dev-1000-flags.md), Phase 3, ADR 0006).
 
 ## Cohorts
 
@@ -56,9 +58,15 @@ Results: [`docs/results/`](../results/). Design and limitations: [ADR 0003](../d
 
 | Store | Config | Patients | Nodes / edges | Size | Build time | Store digest |
 | --- | --- | --- | --- | --- | --- | --- |
-| dev-1000 | `configs/graphs/dev-1000.yaml` | 1,148 | 977,475 / 1,152,231 | 1.3 GB | about 10 min | `17bc4588…` |
+| dev-1000 | `configs/graphs/dev-1000.yaml` | 1,148 | 977,475 / 1,152,231 | 1.3 GB | about 10 min | `8f7276bd…` |
 
 Built by `scripts/build_graphs.py` (ADR 0005). The 156 synthetic lab reports of reports-v1 and reports-v2 are filed in their patients' records, from the saved LLM transcriptions of their text versions. Every graph is checked against the invariants in `graph/check.py` before it is stored. The build time is from an Apple M3.
+
+The digest changed from `17bc4588…` in Phase 4a, when a quote on the `monitored_by` edges was corrected (ADR 0007); nothing else in the graphs changed.
+
+## Knowledge store
+
+Pinned guideline documents and the cohort's DailyMed labels, the verification of every cited quote, the retrieval index and its smoke checks: [`knowledge-dev-1000.md`](knowledge-dev-1000.md) (ADR 0007). The files themselves stay in `$MEDGRAPH_DATA_DIR/knowledge`.
 
 ## What the dev-1000 profile shows
 

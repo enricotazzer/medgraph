@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Hand-written for tests: the structure of a DailyMed SPL document, with invented text.
+     It is not a real drug label. -->
+<document xmlns="urn:hl7-org:v3">
+  <id root="00000000-0000-0000-0000-000000000001"/>
+  <code code="34391-3" codeSystem="2.16.840.1.113883.6.1" displayName="HUMAN PRESCRIPTION DRUG LABEL"/>
+  <title>EXAMPLINE (exampline) tablets, for oral use <br/>Initial U.S. Approval: 2001</title>
+  <effectiveTime value="20250102"/>
+  <setId root="11111111-2222-3333-4444-555555555555"/>
+  <versionNumber value="7"/>
+  <author>
+    <time/>
+    <assignedEntity>
+      <representedOrganization>
+        <id extension="000000000" root="1.3.6.1.4.1.519.1"/>
+        <name>Example Pharma, Inc.</name>
+      </representedOrganization>
+    </assignedEntity>
+  </author>
+  <component>
+    <structuredBody>
+      <component>
+        <section>
+          <code code="48780-1" codeSystem="2.16.840.1.113883.6.1" displayName="SPL PRODUCT DATA ELEMENTS SECTION"/>
+          <subject>
+            <manufacturedProduct>
+              <manufacturedProduct>
+                <name>Examplix</name>
+                <asEntityWithGeneric><genericMedicine><name>EXAMPLINE</name></genericMedicine></asEntityWithGeneric>
+              </manufacturedProduct>
+              <subjectOf>
+                <approval>
+                  <id extension="NDA000001" root="2.16.840.1.113883.3.150"/>
+                  <code code="C73594" codeSystem="2.16.840.1.113883.3.26.1.1" displayName="NDA"/>
+                </approval>
+              </subjectOf>
+            </manufacturedProduct>
+          </subject>
+        </section>
+      </component>
+      <component>
+        <section>
+          <code code="34068-7" codeSystem="2.16.840.1.113883.6.1" displayName="DOSAGE &amp; ADMINISTRATION SECTION"/>
+          <title>2 DOSAGE AND ADMINISTRATION</title>
+          <text><paragraph>Take one tablet daily.</paragraph></text>
+          <component>
+            <section>
+              <code code="42229-5" codeSystem="2.16.840.1.113883.6.1" displayName="SPL UNCLASSIFIED SECTION"/>
+              <title>2.2 Dose in Patients with Renal Impairment</title>
+              <text>
+                <paragraph>Assess eGFR before starting EXAMPLINE and at least <content styleCode="bold">every 12 months</content> thereafter.</paragraph>
+                <list listType="unordered"><item>eGFR 30 to 44 mL/min/1.73 m<sup>2</sup>: half dose.</item><item>eGFR below 30 mL/min/1.73 m<sup>2</sup>: do not use.</item></list>
+                <table><thead><tr><th>eGFR</th><th>Dose</th></tr></thead><tbody><tr><td>&#8805;45</td><td>10 mg</td></tr><tr><td>30&#8211;44</td><td>5 mg</td></tr></tbody></table>
+              </text>
+            </section>
+          </component>
+        </section>
+      </component>
+      <component>
+        <section>
+          <code code="34070-3" codeSystem="2.16.840.1.113883.6.1" displayName="CONTRAINDICATIONS SECTION"/>
+          <title>4 CONTRAINDICATIONS</title>
+          <text><paragraph>Severe renal impairment (eGFR below 30 mL/min/1.73 m<sup>2</sup>) [see <linkHtml href="#s2.2">Dosage and Administration (2.2)</linkHtml>].</paragraph></text>
+        </section>
+      </component>
+    </structuredBody>
+  </component>
+</document>

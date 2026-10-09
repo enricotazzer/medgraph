@@ -1,0 +1,61 @@
+# Retrieval smoke checks for the knowledge index (scripts/knowledge_report.py).
+#
+# Each question is asked in English and in Italian. A check passes at rank k when a passage
+# among the first k contains `expect` (compared as medgraph.rag.text tokens: case, spacing and
+# punctuation are ignored). `sources` limits the search, as explanations will: the guidelines
+# plus the labels of the patient's drugs; "guidelines" stands for every document in
+# documents.yaml.
+#
+# These were written by the developer, who knows the documents: a smoke test that the right
+# passage is reachable, not an evaluation of retrieval quality.
+checks:
+  - id: gfr-monitoring
+    en: How often should GFR and albuminuria be assessed in people with chronic kidney disease?
+    it: Ogni quanto vanno valutati GFR e albuminuria nelle persone con malattia renale cronica?
+    expect: and GFR at least annually in people with CKD
+    sources: [guidelines]
+  - id: ckd-chronicity
+    en: How long must kidney abnormalities last before chronic kidney disease can be diagnosed?
+    it: Per quanto tempo devono durare le alterazioni renali per parlare di malattia renale cronica?
+    expect: duration of a minimum of 3 months
+    sources: [guidelines]
+  - id: hb-cutoff-men
+    en: What haemoglobin level defines anaemia in adult men?
+    it: Quale valore di emoglobina definisce l'anemia negli uomini adulti?
+    expect: Adults, 15-65 years, men <130
+    sources: [guidelines]
+  - id: hb-smoking
+    en: How should the haemoglobin cutoff be adjusted for a smoker?
+    it: Come si corregge la soglia di emoglobina per un fumatore?
+    expect: Smoker, quantity unknown 3
+    sources: [guidelines]
+  - id: hb-testing-ckd3
+    en: How often should haemoglobin be measured in CKD stage 3 without anaemia?
+    it: Ogni quanto misurare l'emoglobina nella malattia renale cronica stadio 3 senza anemia?
+    expect: at least annually in patients with CKD 3
+    sources: [guidelines]
+  - id: hb-esa-maintenance
+    en: How often should haemoglobin be checked during maintenance ESA therapy in CKD not on dialysis?
+    it: Ogni quanto controllare l'emoglobina durante la terapia di mantenimento con ESA nei pazienti non in dialisi?
+    expect: during the maintenance phase of ESA therapy measure Hb concentration
+    sources: [guidelines]
+  - id: ckd-epi
+    en: What is the CKD-EPI 2021 creatinine equation for eGFR?
+    it: Qual è l'equazione CKD-EPI 2021 per stimare il GFR dalla creatinina?
+    expect: eGFR = 142
+    sources: [guidelines]
+  - id: metformin-egfr
+    en: Can metformin be used when the eGFR is below 30?
+    it: Si può usare la metformina con un eGFR inferiore a 30?
+    expect: contraindicated in patients with an estimated glomerular filtration rate (eGFR) below 30
+    sources: [guidelines, "label:c3dfa8a1-d10a-4a1a-8eba-5f4e2a5a2949"]
+  - id: epogen-hb
+    en: How often should haemoglobin be monitored on epoetin alfa in chronic kidney disease?
+    it: Ogni quanto monitorare l'emoglobina in terapia con epoetina alfa nella malattia renale cronica?
+    expect: monitor hemoglobin levels at least weekly until stable, then monitor at least monthly
+    sources: [guidelines, "label:1f2d0b28-9cc5-4523-80b8-637fdaf3f7a5"]
+  - id: lisinopril-nsaid
+    en: Is it a problem to take lisinopril together with an NSAID such as naproxen?
+    it: È un problema assumere lisinopril insieme a un FANS come il naprossene?
+    expect: Monitor renal function periodically in patients receiving lisinopril and NSAID therapy
+    sources: [guidelines, "label:838c2d78-d2d8-4981-9ec9-e50ef9e1a5d8"]

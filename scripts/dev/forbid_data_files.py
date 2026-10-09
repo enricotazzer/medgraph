@@ -34,6 +34,7 @@ BLOCKED_SUFFIXES = (
     ".sqlite",
     ".sqlite3",
     ".pdf",
+    ".xml",  # drug labels (DailyMed SPL) and other downloaded documents
 )
 
 

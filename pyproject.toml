@@ -12,9 +12,11 @@ requires-python = ">=3.12"
 dependencies = [
     "httpx>=0.28.1",
     "networkx>=3.7",
+    "numpy>=2.5.3",
     "pdfplumber>=0.11.10",
     "pydantic>=2.13.5",
     "pydantic-settings>=2.15.0",
+    "pypdfium2>=5.13.0",
     "pyyaml>=6.0.3",
     "reportlab>=5.0.1",
 ]
@@ -71,6 +73,7 @@ select = [
 [tool.ruff.lint.per-file-ignores]
 "scripts/**" = ["T20"]  # command-line tools report to the terminal
 "notebooks/**" = ["T20"]  # notebooks report results
+"tests/rag/**" = ["RUF001"]  # tests of Unicode normalization use the characters themselves
 
 [tool.mypy]
 python_version = "3.12"
@@ -78,6 +81,11 @@ strict = true
 warn_unreachable = true
 plugins = ["pydantic.mypy"]
 files = ["src", "scripts"]
+
+[[tool.mypy.overrides]]
+# pypdfium2 ships no type information; medgraph uses four calls of it (rag/text.py).
+module = ["pypdfium2", "pypdfium2.*"]
+ignore_missing_imports = true
 
 [tool.pydantic-mypy]
 init_forbid_extra = true
@@ -92,6 +100,7 @@ addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importli
 markers = [
     "llm: needs a local Ollama server (enable with --run-llm)",
     "synthea: needs a generated Synthea cohort in MEDGRAPH_DATA_DIR (enable with --run-synthea)",
+    "knowledge: needs the knowledge store in MEDGRAPH_DATA_DIR (enable with --run-knowledge)",
     "mimic: needs local MIMIC-IV, never runs in CI (enable with --run-mimic)",
 ]
 
