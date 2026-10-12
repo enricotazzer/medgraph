@@ -27,6 +27,7 @@
     ["procedure", "Procedures", true],
     ["analyte", "Lab analytes", true],
     ["lab_report", "Lab reports", true],
+    ["source", "Sources", true],
     ["observation", "Other observations", false],
     ["encounter", "Encounters", false],
     ["note", "Notes", false],
@@ -113,10 +114,13 @@
       l.count > 1 ? ` (${l.count} records)` : "",
       h("div", { class: "muted" }, `basis: ${l.basis}`),
       l.citation ? h("div", { class: "muted" }, l.citation) : null,
-      l.detail && l.kind === "monitored_by" ? h("div", { class: "quote" }, `“${l.detail}”`) : null);
+      l.detail && l.kind === "monitored_by" ? h("div", { class: "quote" }, `“${l.detail}”`) : null,
+      l.detail && KNOWLEDGE_LINKS.has(l.kind) ? h("div", { class: "muted" }, l.detail) : null,
+      l.statement ? showSourceLink(l.statement) : null);
   }
   function showConcept(id) {
     const c = concepts.get(id);
+    if (c.kind === "source") return showSource(id);
     lastConcept = id;
     const links = D.links.filter((l) => l.source === id || l.target === id)
       .filter((l) => l.kind !== "occurred_during" || c.kind === "encounter");
@@ -133,9 +137,53 @@
         series ? [h("dt", {}, "usable values"), h("dd", {}, `${series.points.length} in the series (${series.unit})`)] : null,
         head && head.text && c.kind === "lab_report" ? [h("dt", {}, "conventions"), h("dd", {}, head.text)] : null,
         head && head.detail && c.kind !== "analyte" ? [h("dt", {}, "issues"), h("dd", {}, head.detail)] : null,
-        head && head.kind === "lab_report" ? [h("dt", {}, "collection date"), h("dd", {}, head.start ? head.start.date : "not read")] : null),
+        head && head.kind === "lab_report" ? [h("dt", {}, "collection date"), h("dd", {}, head.start ? head.start.date : "not read")] : null,
+        K && K.unlabelled[id] ? [h("dt", {}, "drug label"), h("dd", {}, `none: ${K.unlabelled[id]}`)] : null),
       links.length ? [h("h3", {}, "Links"), h("ul", { class: "links" }, links.map((l) => linkItem(l, id)))] : null,
       c.records.length ? [h("h3", {}, "Records"), recordsTable(c.records)] : null);
+  }
+  // --- sources (the knowledge graph) ------------------------------------------------------
+  const K = D.knowledge || null;
+  const KNOWLEDGE_LINKS = new Set(["labelled_by", "guided_by"]);
+  const SOURCE_KIND = { document: "guideline document", label: "drug label" };
+  function showSourceLink(statement) {
+    const target = K && K.quotes[statement];
+    if (!target) return null;
+    return h("div", {}, h("a", { href: "#", onclick: (ev) => { ev.preventDefault(); selectConcept(target); } }, "Show the source"));
+  }
+  function statementItem(id) {
+    const s = K.nodes[id];
+    return h("li", {},
+      h("div", { class: "muted" }, s.locator, K.cited.includes(id) ? " · cited for this record" : ""),
+      h("div", { class: "quote" }, `“${s.quote}”`),
+      s.table ? h("div", { class: "muted" }, `Table, transcribed row by row (a weaker check): ${s.table}`) : null,
+      h("div", { class: "mono muted" }, `passage ${s.passages.join(", ")}`));
+  }
+  function showSource(id) {
+    const n = K.nodes[id];
+    lastConcept = id;
+    const statements = Object.keys(K.quotes).filter((s) => K.quotes[s] === id);
+    const links = D.links.filter((l) => l.target === id);
+    const rows = [
+      ["citation", n.citation],
+      ["labeler", n.labeler],
+      ["set ID, version", n.setid ? `${n.setid}, v${n.version}` : null],
+      ["effective", n.effective],
+      ["type", n.document_type],
+      ["licence", n.licence],
+      ["stored file", n.sha256 ? `SHA-256 ${n.sha256.slice(0, 12)}…` : null],
+      ["retrieved", n.retrieved ? n.retrieved.slice(0, 10) : null],
+      ["from", n.url],
+    ].filter(([, v]) => v);
+    show(
+      h("span", { class: "kind" }, SOURCE_KIND[n.kind] || n.kind),
+      h("h2", {}, n.title),
+      h("dl", {}, rows.map(([k, v]) => [h("dt", {}, k), h("dd", { class: k === "from" ? "mono" : null }, v)])),
+      links.length ? [h("h3", {}, "Linked in this record"), h("ul", { class: "links" }, links.map((l) => linkItem(l, id)))] : null,
+      h("h3", {}, `What medgraph quotes from it (${statements.length})`),
+      statements.length ? h("ul", { class: "links" }, statements.map(statementItem)) : h("p", { class: "muted" }, "Nothing yet."),
+      n.sections && n.sections.length ? h("details", {}, h("summary", {}, `Sections (${n.sections.length})`), h("ul", {}, n.sections.map((t) => h("li", {}, t)))) : null,
+      h("p", { class: "muted" }, "Each quote was checked against the stored file when the knowledge graph was built. The page shows a source's details and these quotes, not its full text."));
   }
   function sourceItem(s) {
     return h("li", { class: "mono", title: s.source }, `${s.resource_type}/${s.resource_id} in ${s.source.slice(0, 19)}…`);
@@ -223,6 +271,7 @@
       { selector: "edge[kind = 'monitored_by']", style: { "line-style": "dashed", "line-color": color("analyte"), "target-arrow-color": color("analyte") } },
       { selector: "edge[kind = 'measures']", style: { "line-style": "dotted", "line-color": color("lab_report"), "target-arrow-color": color("lab_report") } },
       { selector: "edge[kind = 'occurred_during']", style: { width: 0.6, opacity: 0.35 } },
+      { selector: "edge[kind = 'labelled_by'], edge[kind = 'guided_by']", style: { "line-style": "dashed", "line-color": color("source"), "target-arrow-color": color("source") } },
       { selector: ":selected", style: { "border-width": 3, "border-color": cssVar("--accent"), "line-color": cssVar("--accent"), "target-arrow-color": cssVar("--accent") } },
       { selector: ".dim", style: { opacity: 0.15 } },
     ],
@@ -235,7 +284,7 @@
   }
   // Columns read left to right: what was measured, what is wrong, what treats it. Within a
   // column, nodes sit near the concepts they link to (mean row of their neighbours).
-  const COLUMNS = ["lab_report", "analyte", "condition", "medication", "procedure", "observation", "encounter", "note"];
+  const COLUMNS = ["lab_report", "analyte", "condition", "medication", "procedure", "source", "observation", "encounter", "note"];
   const COLUMN_WIDTH = 250;
   let layoutName = "columns";
   function columnPositions(nodes) {
@@ -249,7 +298,7 @@
       return placed.reduce((sum, m) => sum + rows.get(m.id()), 0) / placed.length;
     };
     // Conditions first, by first date; then the columns that link to them; then the rest.
-    const order = ["condition", "medication", "procedure", "analyte", "lab_report", "observation", "encounter", "note"];
+    const order = ["condition", "medication", "procedure", "source", "analyte", "lab_report", "observation", "encounter", "note"];
     for (const kind of order) {
       const column = byKind.get(kind);
       const key = kind === "condition" ? (n) => firstDate(n) : meanRow;
@@ -583,7 +632,8 @@
   function sourceDetails(ids) {
     return ids.map((id) => {
       const src = (D.rule_sources || {})[id];
-      return src ? h("details", {}, h("summary", {}, src.citation), h("div", { class: "quote" }, `“${src.quote}”`)) : null;
+      return src ? h("details", {}, h("summary", {}, src.citation), h("div", { class: "quote" }, `“${src.quote}”`),
+        src.statement ? showSourceLink(src.statement) : null) : null;
     });
   }
   function evidenceList(evidence) {

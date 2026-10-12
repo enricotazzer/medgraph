@@ -104,14 +104,20 @@ class KnowledgeIndex:
     # --- writing --------------------------------------------------------------------------
 
     def replace_chunks(self, chunks: Sequence[Chunk], meta: dict[str, str]) -> None:
-        """Store these passages instead of the current ones. A passage whose ID and text are
-        unchanged keeps its row and embeddings; any other is replaced."""
+        """Store these passages instead of the current ones. A passage whose ID and embedded
+        content (title, location and text; ``embedding_text``) are unchanged keeps its row and
+        embeddings; any other is replaced, and loses its embeddings."""
         ids = [c.id for c in chunks]
         if len(set(ids)) != len(ids):
             raise ValueError("duplicate passage IDs")
         self._cache.clear()
-        stored = dict(self.db.execute("SELECT id, text FROM chunks").fetchall())
-        keep = {c.id for c in chunks if stored.get(c.id) == c.text}
+        stored = {
+            id_: (title, location, text)
+            for id_, title, location, text in self.db.execute(
+                "SELECT id, title, location, text FROM chunks"
+            )
+        }
+        keep = {c.id for c in chunks if stored.get(c.id) == (c.title, c.where, c.text)}
         drop = [(i,) for i in stored if i not in keep]
         with self.db:
             self.db.executemany("DELETE FROM embeddings WHERE chunk = ?", drop)

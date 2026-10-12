@@ -10,7 +10,9 @@ browser. It needs no server and makes no network requests.
 
 ``--list`` prints patients worth a look: those with a condition in the monitoring table, a
 filed lab report, or both, with their flag count from ``make flags`` ("?" if not run).
-The page includes the follow-up flags, evaluated as of the cohort's simulation end date.
+The page includes the follow-up flags, evaluated as of the cohort's simulation end date, and
+the sources joined to the record by code if the knowledge graph is built
+(``make knowledge-graph``).
 """
 
 import argparse
@@ -19,6 +21,7 @@ import json
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from build_knowledge_graph import load_current
 from evaluate_flags import evaluation_date
 from medgraph.graph.store import GraphStore, StoreError
 from medgraph.graph.timeline import build_timeline
@@ -89,7 +92,8 @@ def main(argv: list[str] | None = None) -> int:
             parser.error(str(exc))
     as_of = evaluation_date(load_meta(settings.synthea_dir / args.cohort), args.as_of)
     rules = evaluate(graph, as_of).model_dump(mode="json")
-    html = render_html(graph, build_timeline(graph), SYNTHETIC_BANNER, rules)
+    knowledge = load_current(settings, args.cohort)
+    html = render_html(graph, build_timeline(graph), SYNTHETIC_BANNER, rules, knowledge=knowledge)
     out = args.out or settings.views_dir / args.cohort / f"{matches[0]}.html"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")

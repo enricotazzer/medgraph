@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="/*CSP*/">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>medgraph concept map</title>
+<style>/*VIEWER_CSS*/</style>
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>Cohort concept map</h1>
+    <p id="cohort-line" class="muted"></p>
+  </div>
+  <p id="banner" class="banner" role="note"></p>
+</header>
+<main class="layout cohort">
+  <section class="panel graph-panel" aria-label="Graph of the cohort's concepts">
+    <div class="toolbar">
+      <div id="kind-toggles" class="toggles" role="group" aria-label="Kinds shown"></div>
+      <input id="search" type="search" placeholder="Find a concept" aria-label="Find a concept">
+    </div>
+    <div id="filters" class="toolbar toggles"></div>
+    <div id="cy" class="cy"></div>
+    <p id="status" class="hint" aria-live="polite"></p>
+    <p class="hint">Each node is a concept: records with the same code, merged across patients.
+      Node size and the number in brackets count patients with at least one such record. A link
+      counts patients whose own record links the two concepts. Click a node or a link for its
+      patients. Drag to move, scroll to zoom.</p>
+  </section>
+  <aside id="details" class="panel details" aria-live="polite"></aside>
+</main>
+<footer class="foot muted">
+  medgraph is a research prototype, not a medical device. The map shows what the records
+  contain and how often; it does not describe any real population. Generated offline; this page
+  makes no network requests.
+</footer>
+<script type="application/json" id="medgraph-data">/*DATA*/</script>
+<script>/*VENDOR_JS*/</script>
+<script>/*VIEWER_JS*/</script>
+</body>
+</html>

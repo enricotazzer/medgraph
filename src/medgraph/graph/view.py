@@ -16,9 +16,16 @@ import hashlib
 import json
 import re
 from collections import defaultdict
+from collections.abc import Collection
 from importlib.resources import files
 from typing import Any
 
+from medgraph.graph.knowledge import (
+    KnowledgeGraph,
+    knowledge_for,
+    monitoring_statement_for,
+    statement_of_source,
+)
 from medgraph.graph.schema import (
     EdgeKind,
     NodeData,
@@ -239,11 +246,64 @@ def rules_model(graph: PatientGraph, rules: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def add_knowledge(model: dict[str, Any], knowledge: KnowledgeGraph) -> None:
+    """Joins the knowledge graph to a page's model, in place: the labels and guidelines linked
+    to its concepts by code become "source" concepts, and each cited rule source and each
+    monitoring link names the checked statement it rests on."""
+    cited = {statement_of_source(s) for s in model.get("rule_sources", {})}
+    monitoring = [link for link in model["links"] if link["kind"] == "monitored_by"]
+    for link in monitoring:
+        cited.add(monitoring_statement_for(link["target"].removeprefix("analyte:")))
+    extra = knowledge_for(knowledge, [c["id"] for c in model["concepts"]], cited)
+    nodes = extra["nodes"]
+    for link in monitoring:
+        statement = monitoring_statement_for(link["target"].removeprefix("analyte:"))
+        if statement in nodes:
+            link["statement"] = statement
+    for source_id, entry in model.get("rule_sources", {}).items():
+        if statement_of_source(source_id) in nodes:
+            entry["statement"] = statement_of_source(source_id)
+    for node_id, node in nodes.items():
+        if node["kind"] != "statement":
+            model["concepts"].append(
+                {
+                    "id": node_id,
+                    "kind": "source",
+                    "label": node["title"],
+                    "code": None,
+                    "count": 0,
+                    "first": None,
+                    "last": None,
+                    "active": False,
+                    "records": [],
+                }
+            )
+    for link in extra["links"]:
+        model["links"].append(
+            {
+                "source": link["source"],
+                "target": link["target"],
+                "kind": link["kind"],
+                "count": 1,
+                "basis": link["basis"],
+                "citation": None,
+                "detail": link.get("detail"),
+            }
+        )
+    model["knowledge"] = {k: extra[k] for k in ("digest", "nodes", "quotes", "cited", "unlabelled")}
+
+
 def render_html(
-    graph: PatientGraph, timeline: Timeline, banner: str, rules: dict[str, Any] | None = None
+    graph: PatientGraph,
+    timeline: Timeline,
+    banner: str,
+    rules: dict[str, Any] | None = None,
+    *,
+    knowledge: KnowledgeGraph | None = None,
 ) -> str:
     """The patient's page. ``banner`` says where the data came from (e.g. synthetic);
-    ``rules`` adds follow-up flags and the computed eGFR series."""
+    ``rules`` adds follow-up flags and the computed eGFR series; ``knowledge`` adds the
+    sources joined to the record's concepts (:mod:`medgraph.graph.knowledge`)."""
     model = view_model(graph, timeline)
     model["banner"] = banner
     if rules is not None:
@@ -252,17 +312,65 @@ def render_html(
         model["rule_sources"] = extra["sources"]
         if extra["computed_series"]:
             model["series"].append(extra["computed_series"])
-    template = (STATIC / "viewer.html").read_text(encoding="utf-8")
-    parts = {
-        "/*CSP*/": CSP,
-        "/*VENDOR_CSS*/": vendor_file("uPlot.min.css"),
-        "/*VIEWER_CSS*/": (STATIC / "viewer.css").read_text(encoding="utf-8"),
-        "/*VENDOR_JS*/": vendor_file("cytoscape.min.js") + "\n" + vendor_file("uPlot.iife.min.js"),
-        "/*VIEWER_JS*/": (STATIC / "viewer.js").read_text(encoding="utf-8"),
-        "/*DATA*/": _script_json(model),
+    if knowledge is not None:
+        add_knowledge(model, knowledge)
+    return _fill(
+        "viewer.html",
+        {
+            "/*CSP*/": CSP,
+            "/*VENDOR_CSS*/": vendor_file("uPlot.min.css"),
+            "/*VIEWER_CSS*/": _static("viewer.css"),
+            "/*VENDOR_JS*/": vendor_file("cytoscape.min.js")
+            + "\n"
+            + vendor_file("uPlot.iife.min.js"),
+            "/*VIEWER_JS*/": _static("viewer.js"),
+            "/*DATA*/": _script_json(model),
+        },
+    )
+
+
+# A patient ID becomes a link to that patient's page only if it is a plain file name.
+_PAGE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+
+
+def render_concept_map(
+    model: dict[str, Any],
+    *,
+    cohort: str,
+    store_digest: str,
+    banner: str,
+    pages: Collection[str] = (),
+) -> str:
+    """The cohort's concept map page. ``model`` is :func:`medgraph.graph.concepts.concept_map`;
+    ``pages`` are the patients whose page sits next to this one, which the map links to."""
+    patients = model["patients"]
+    data = {
+        **model,
+        "cohort": cohort,
+        "store_digest": store_digest,
+        "banner": banner,
+        "pages": [i for i, p in enumerate(patients) if p in pages and _PAGE_NAME.fullmatch(p)],
     }
+    return _fill(
+        "concepts.html",
+        {
+            "/*CSP*/": CSP,
+            "/*VIEWER_CSS*/": _static("viewer.css") + "\n" + _static("concepts.css"),
+            "/*VENDOR_JS*/": vendor_file("cytoscape.min.js"),
+            "/*VIEWER_JS*/": _static("concepts.js"),
+            "/*DATA*/": _script_json(data),
+        },
+    )
+
+
+def _static(name: str) -> str:
+    return (STATIC / name).read_text(encoding="utf-8")
+
+
+def _fill(template_name: str, parts: dict[str, str]) -> str:
+    template = _static(template_name)
     for marker in parts:
         if template.count(marker) != 1:
-            raise ValueError(f"template must contain {marker} exactly once")
+            raise ValueError(f"{template_name} must contain {marker} exactly once")
     # One pass, so text inserted for one marker is never searched for the others.
     return _MARKER.sub(lambda m: parts[m[0]], template)

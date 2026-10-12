@@ -49,8 +49,9 @@ def test_record_text_cannot_break_out_of_the_data_block(graph: PatientGraph) -> 
     assert json.loads(data)["records"]["note:doc-a1"]["text"] == hostile
 
 
-def test_viewer_script_never_writes_html_or_reaches_the_network() -> None:
-    script = (Path(view.__file__).parent / "static" / "viewer.js").read_text(encoding="utf-8")
+@pytest.mark.parametrize("name", ["viewer.js", "concepts.js"])
+def test_page_scripts_never_write_html_or_reach_the_network(name: str) -> None:
+    script = (Path(view.__file__).parent / "static" / name).read_text(encoding="utf-8")
     for forbidden in (
         "innerHTML",
         "outerHTML",

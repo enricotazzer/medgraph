@@ -72,6 +72,14 @@ def test_changed_passages_lose_their_embeddings(index: KnowledgeIndex) -> None:
     assert index.embedding_digests("m") == {"d1"}
 
 
+def test_a_passage_with_a_new_title_is_embedded_again(index: KnowledgeIndex) -> None:
+    index.save_embeddings("m", "d1", [c.id for c in CHUNKS], [[1, 0], [0, 1], [1, 1]])
+    renamed = CHUNKS[2].model_copy(update={"title": "Another name"})
+    index.replace_chunks([*CHUNKS[:2], renamed], {"cohort": "test"})
+    assert [c.id for c in index.without_embedding("m")] == [CHUNKS[2].id]
+    assert index.chunk(CHUNKS[2].id).title == "Another name"
+
+
 def test_search_can_be_limited_to_sources(index: KnowledgeIndex) -> None:
     index.save_embeddings("m", "d1", [c.id for c in CHUNKS], [[1, 0], [0, 1], [0, 1]])
     assert [h.chunk for h in index.bm25("metformin eGFR GFR", sources={"doc"})] == [CHUNKS[0].id]

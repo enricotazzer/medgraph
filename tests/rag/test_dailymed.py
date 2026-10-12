@@ -143,6 +143,13 @@ def test_spl_meta_reads_identity_from_the_document() -> None:
         spl_meta(b'<document xmlns="urn:hl7-org:v3"/>')
 
 
+def test_a_name_suffix_is_a_word_of_its_own() -> None:
+    xml = SPL.read_bytes().replace(
+        b"<name>Examplix</name>", b"<name>Examplix<suffix>XR</suffix></name>"
+    )
+    assert spl_meta(xml).name == "Examplix XR (exampline)"
+
+
 def test_lock_round_trips_and_lists_each_label_once() -> None:
     label = LockedLabel(
         setid="s",

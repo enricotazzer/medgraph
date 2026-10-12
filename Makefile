@@ -2,7 +2,7 @@
 # Extra arguments: make synthea-dev ARGS=--force
 
 .PHONY: setup lint format typecheck test test-synthea check synthea-pilot synthea-dev profile \
-	normalization extract-rules extract-llm graphs flags knowledge index knowledge-report view report review
+	normalization extract-rules extract-llm graphs flags knowledge index knowledge-report knowledge-graph view concept-map report review
 
 setup:
 	uv sync
@@ -83,9 +83,17 @@ endif
 knowledge-report:
 	scripts/dev/llm_run.sh knowledge-report-$(COHORT) uv run python -u scripts/knowledge_report.py $(COHORT) $(ARGS)
 
+# Sources joined to patient concepts by code, every quote checked (needs make knowledge)
+knowledge-graph:
+	uv run python scripts/build_knowledge_graph.py $(COHORT) $(ARGS)
+
 # One patient's page, for example: make view PATIENT=b475e58b (no PATIENT: suggestions)
 view:
 	uv run python scripts/view_patient.py $(COHORT) $(PATIENT) $(ARGS)
+
+# Every patient graph merged by concept, as one page next to the patient pages (needs make graphs)
+concept-map:
+	uv run python scripts/concept_map.py $(COHORT) $(ARGS)
 
 # Technical reports: figures from the saved metrics, then the PDFs (docs/reports/build/).
 report:

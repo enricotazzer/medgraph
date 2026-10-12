@@ -17,6 +17,7 @@
   --k-observation: #7d8794;
   --k-encounter: #9aa3ad;
   --k-note: #1b8597;
+  --k-source: #6b7a2a;
   --unusable: #b42318;
   --computed: #8a4fd6;
   --flag-bg: #fdf3ec;
@@ -44,6 +45,7 @@
     --k-observation: #a3acb6;
     --k-encounter: #79828c;
     --k-note: #4cbccc;
+    --k-source: #b5c46a;
     --unusable: #ff8a7a;
     --computed: #b98cf2;
     --flag-bg: #2e231b;
@@ -69,6 +71,7 @@
   --k-observation: #a3acb6;
   --k-encounter: #79828c;
   --k-note: #4cbccc;
+  --k-source: #b5c46a;
   --unusable: #ff8a7a;
   --computed: #b98cf2;
   --flag-bg: #2e231b;

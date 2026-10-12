@@ -4,15 +4,18 @@ Needs the knowledge store (``make knowledge``); run with ``pytest --run-knowledg
 documents' licences forbid committing them, so this cannot run without the local store.
 """
 
+from collections import Counter
 from pathlib import Path
 
 import pytest
 
+from medgraph.graph.knowledge import build_knowledge_graph
 from medgraph.rag.dailymed import LabelLock
 from medgraph.rag.documents import DocumentSpec, extract_pages, load_documents, reference_pages
 from medgraph.rag.fetch import sha256_file
 from medgraph.rag.quotes import check_quote
 from medgraph.rag.spl import section_pages
+from medgraph.rag.store import KnowledgeStore
 from medgraph.rag.text import Page
 from medgraph.rules.monitoring import MONITORING
 from medgraph.rules.sources import SOURCES
@@ -80,3 +83,29 @@ def test_licence_statements(doc_id: str, documents: dict[str, tuple[Page, ...]])
     spec = specs()[doc_id]
     if spec.licence_quote:
         assert check_quote(spec.licence_quote, documents[doc_id]) == []
+
+
+def test_the_knowledge_graph_builds_from_the_store() -> None:
+    """Every stored source becomes a node, every drug of the lock is linked or says why not,
+    and every quoted statement is checked and held by passages of its own source."""
+    lock = LabelLock.model_validate_json(LOCK.read_text(encoding="utf-8"))
+    graph = build_knowledge_graph(
+        cohort="dev-1000",
+        specs=load_documents(CONFIG),
+        lock=lock,
+        kstore=KnowledgeStore(Settings().knowledge_dir),
+        inputs={},
+    )
+    kinds = Counter(n.kind for n in graph.nodes.values())
+    assert kinds == {
+        "document": len(specs()),
+        "label": len(lock.labels()),
+        "statement": len(SOURCES) + len({link.analyte for link in LINKS.values()}),
+    }
+    labelled = {x.source for x in graph.links if x.kind == "labelled_by"}
+    assert len(labelled) + len(graph.unlabelled) == len(lock.drugs)
+    assert not labelled & graph.unlabelled.keys()
+    for x in graph.links:
+        if x.kind == "quotes":
+            prefix = x.target.removeprefix("document:")
+            assert all(p.startswith(prefix) for p in graph.nodes[x.source].passages), x.source

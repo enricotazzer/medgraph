@@ -153,6 +153,17 @@ def _text(element: ET.Element | None) -> str:
     return " ".join("".join(element.itertext()).split()) if element is not None else ""
 
 
+def _name(element: ET.Element | None) -> str:
+    """A product name. Its parts are words of their own: SPL writes "TYLENOL Regular Strength"
+    as ``<name>TYLENOL<suffix>Regular Strength</suffix></name>``."""
+    if element is None:
+        return ""
+    parts = [element.text or ""]
+    for child in element:
+        parts += ["".join(child.itertext()), child.tail or ""]
+    return " ".join(" ".join(parts).split())
+
+
 def _product_name(root: ET.Element) -> str:
     for product in root.iter(f"{HL7}manufacturedProduct"):
         inner = product.find(f"{HL7}manufacturedProduct")
@@ -160,8 +171,8 @@ def _product_name(root: ET.Element) -> str:
             inner = product.find(f"{HL7}manufacturedMedicine")
         if inner is None:
             continue
-        name = _text(inner.find(f"{HL7}name"))
-        generic = _text(inner.find(f"{HL7}asEntityWithGeneric/{HL7}genericMedicine/{HL7}name"))
+        name = _name(inner.find(f"{HL7}name"))
+        generic = _name(inner.find(f"{HL7}asEntityWithGeneric/{HL7}genericMedicine/{HL7}name"))
         if name and generic and generic.lower() != name.lower():
             return f"{name} ({generic.lower()})"
         return name or generic

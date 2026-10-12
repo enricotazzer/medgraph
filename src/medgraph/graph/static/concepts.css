@@ -1,0 +1,29 @@
+/* The cohort concept map: viewer.css, plus a two-panel layout and patient lists. */
+.layout.cohort { grid-template-areas: "graph details"; }
+.cohort .cy { height: 720px; }
+.cohort .details { max-height: 820px; }
+@media (max-width: 900px) {
+  .layout.cohort { grid-template-columns: minmax(0, 1fr); grid-template-areas: "graph" "details"; }
+  .cohort .details { max-height: none; }
+}
+#filters { font-size: 13px; }
+#filters select { border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+ul.patients {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0;
+  columns: 4 10ch;
+  column-gap: 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+ul.patients li { break-inside: avoid; }
+ul.links button.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent);
+  text-align: left;
+  cursor: pointer;
+}
+ul.links button.link:hover { text-decoration: underline; }

@@ -101,6 +101,14 @@ One SQLite file per cohort, at `$MEDGRAPH_DATA_DIR/graphs/<cohort>.sqlite`.
 - **Banner:** a synthetic-data banner, set by `view_patient.py`.
 - **Language:** English only for now. Italian comes with the Phase 5 interface.
 
+### Cohort concept map (`graph/concepts.py`, added 2026-10-09)
+
+`make concept-map` merges every stored graph into one page, `views/<cohort>/concept-map.html`. Patients share no nodes in the store, so this map is the only view across them.
+- **Concepts** group records by code, exactly as on the patient page, with one exception: filed lab reports have no code, so they form a single concept. A concept counts the patients with at least one of its records. An analyte's own node is not a record, so an analyte that the monitoring table links to but nobody measured has no patients.
+- **Links** count the patients whose own graph has at least one edge of that kind between records of the two concepts. Each link keeps the basis of the edges it groups. The map adds no link that no patient graph contains, and computes no co-occurrence.
+- **Page:** the patient page's CSP, vendored Cytoscape.js and `textContent`-only script rules apply. Filters cover kinds and a minimum patient count (default 10). A concept or a link lists its patients, and links the ones whose page already exists in the same folder.
+- **Reading it:** counts describe the cohort, not a population. For Synthea, `treated_by` reflects the reasons the simulator's modules write.
+
 ### Cohort build (`scripts/build_graphs.py`, `configs/graphs/dev-1000.yaml`)
 
 The script builds every patient and checks the invariants in `graph/check.py`:

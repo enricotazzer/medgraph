@@ -21,21 +21,16 @@ from pathlib import Path
 
 from fetch_knowledge import CONFIG_DIR, lock_path
 from medgraph.agent.llm import OllamaClient
-from medgraph.rag.chunks import MAX_WORDS, Chunk, document_chunks, label_chunks, words
-from medgraph.rag.dailymed import LabelLock, spl_meta
-from medgraph.rag.documents import extract_pages, load_documents, reference_pages
-from medgraph.rag.fetch import sha256_file
+from medgraph.rag.chunks import MAX_WORDS, Chunk, words
+from medgraph.rag.dailymed import LabelLock
+from medgraph.rag.documents import load_documents
 from medgraph.rag.index import KnowledgeIndex, embedding_text
-from medgraph.rag.spl import sections
 from medgraph.rag.store import KnowledgeStore
+from medgraph.rag.stored import document_pages, document_passages, label_passages, label_xml
 from medgraph.settings import Settings
 
 EMBEDDING_MODEL = "bge-m3"
 BATCH = 16
-
-
-class PinError(RuntimeError):
-    """A stored file does not match its pin."""
 
 
 def file_digest(path: Path) -> str:
@@ -45,22 +40,9 @@ def file_digest(path: Path) -> str:
 def all_chunks(kstore: KnowledgeStore, lock: LabelLock) -> list[Chunk]:
     chunks: list[Chunk] = []
     for spec in load_documents(CONFIG_DIR / "documents.yaml"):
-        path = kstore.document_path(spec.filename)
-        if sha256_file(path) != spec.sha256:
-            raise PinError(f"{path} does not match its pinned SHA-256; run make knowledge")
-        pages = extract_pages(path, spec)
-        skipped = reference_pages(pages, spec)
-        pages = tuple(p for p in pages if p.number not in skipped)
-        chunks += document_chunks(
-            spec.id, spec.sha256[:12], spec.title, pages, running=spec.is_running
-        )
+        chunks += document_passages(spec, document_pages(kstore, spec))
     for label in lock.labels().values():
-        path = kstore.label_path(label.path)
-        if sha256_file(path) != label.sha256:
-            raise PinError(f"{path} does not match the lock; run make knowledge")
-        xml = path.read_bytes()
-        name = spl_meta(xml).name or label.title
-        chunks += label_chunks(label.setid, label.version, name, sections(xml))
+        chunks += label_passages(label, label_xml(kstore, label))
     return chunks
 
 

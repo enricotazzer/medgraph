@@ -20,7 +20,12 @@ $MEDGRAPH_DATA_DIR/
     logs/            # background LLM runs (make extract-llm), cohort graph builds
   graphs/<cohort>.sqlite   # patient graphs (make graphs): tables graphs, nodes, edges, meta;
                            # rule results per ruleset and date (make flags): table rules
+  knowledge/               # pinned sources (make knowledge): documents/, labels/<set id>/v<n>.xml,
+                           # manifest.json
+    index-<cohort>.sqlite  # passages, BM25 and embeddings (make index)
+    graph-<cohort>.json    # sources joined to patient concepts by code (make knowledge-graph)
   views/<cohort>/<patient>.html  # one patient's offline page (make view PATIENT=...)
+  views/<cohort>/concept-map.html  # every patient graph merged by concept (make concept-map)
 ```
 
 This folder holds only aggregate, synthetic reports:
