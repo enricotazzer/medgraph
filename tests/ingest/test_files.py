@@ -50,7 +50,11 @@ def test_remove_tree_deletes_nested_tree(tmp_path: Path) -> None:
 def test_remove_tree_copes_with_exfat_quirks(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Simulates macOS exFAT: companions vanish with their file; NFD names only unlink as NFC."""
+    """Simulates macOS exFAT: companions vanish with their file; NFD names only unlink as NFC.
+
+    The simulation finds the stored entry itself, so it does not depend on the host: macOS
+    matches names regardless of Unicode normalization, Linux (CI) compares bytes.
+    """
     root = tmp_path / "cohort"
     root.mkdir()
     nfd_name = unicodedata.normalize("NFD", "Jesús825.json")
@@ -62,8 +66,14 @@ def test_remove_tree_copes_with_exfat_quirks(
     def exfat_unlink(path: Path, missing_ok: bool = False) -> None:
         if not unicodedata.is_normalized("NFC", str(path)):
             raise FileNotFoundError(str(path))
-        companion = path.with_name("._" + path.name)
-        real_unlink(path)
+        stored = next(
+            (p for p in path.parent.iterdir() if unicodedata.normalize("NFC", p.name) == path.name),
+            None,
+        )
+        if stored is None:
+            raise FileNotFoundError(str(path))
+        companion = stored.with_name("._" + stored.name)
+        real_unlink(stored)
         if companion.exists():
             real_unlink(companion)
 
