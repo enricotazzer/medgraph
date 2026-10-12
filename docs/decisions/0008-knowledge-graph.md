@@ -61,7 +61,7 @@ A page script uses the graph only if both match. Otherwise it writes the page wi
 
 - **Product names.** SPL writes some names as a name plus a `<suffix>`, and the reader joined them without a space: "INDERALLA", "AleveCaplets", "EnvarsusXR". This affected 9 of the 201 labels, and the names are fixed.
 - **Index title changes.** The index kept a passage whose text was unchanged even if its title had changed. It now also compares the title and location, which are part of what is embedded.
-- **Index still has the old names.** It has not been rebuilt since these fixes, so the 9 labels' passages there carry the old titles. The next `make index` re-inserts those passages without embeddings, and `make index ARGS=--embed` re-embeds just those passages.
+- **Index refreshed** (2026-10-12). `make index` re-inserted the 9 labels' 636 passages under their corrected names and dropped their embeddings. `make index ARGS=--embed` re-embedded just those, with the same bge-m3 version as the other 15,867, in about a minute. The knowledge report's retrieval checks gave exactly the same results as before.
 
 ## Consequences
 
@@ -72,5 +72,5 @@ A page script uses the graph only if both match. Otherwise it writes the page wi
 - **Limits.**
   - The `guided_by` links cover only the five condition codes in the monitoring table. Other conditions get no guideline, because medgraph has no SNOMED CT hierarchy and cites nothing for them.
   - A label link means "the label the lock chose for this RxNorm code". It does not mean the one the patient's pharmacy dispensed.
-  - Not yet run against the rebuilt pages: the data drive disconnected before the Node check of the page scripts. Nobody has looked at the pages in a browser yet. Unit tests cover the join and the page data.
+  - Both page scripts were run in Node, with headless Cytoscape and the real pages (2026-10-12), with no errors. The checks clicked a drug and its label, a guideline, a flag's and a monitoring link's "Show the source", a drug without a label, and the concept map's sources. Nobody has looked at the pages in a browser yet.
 - **Retrieval-suggested passages** remain Phase 4b, after the decision on BM25.
