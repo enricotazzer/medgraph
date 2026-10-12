@@ -32,7 +32,7 @@ Turns a person's medical records (conditions, medications, labs, procedures, enc
 | 1 | FHIR ingestion, lab normalization, lab-report extraction and its evaluation | done (ADR 0003, 0004; results in `docs/results/`) |
 | 2 | Patient knowledge graph and visualization | done (ADR 0005; `make graphs`, `make view`) |
 | 3 | Guideline rules and follow-up flags | done (ADR 0006; `make flags`) |
-| 4 | Retrieval-augmented explanations and drug knowledge | 4a under review: knowledge store, index, medication rules (ADR 0007; `make knowledge`); knowledge graph joined to the pages (ADR 0008; `make knowledge-graph`); 4b planned |
+| 4 | Retrieval-augmented explanations and drug knowledge | 4a done: knowledge store, index, medication rules (ADR 0007; `make knowledge`); knowledge graph joined to the pages (ADR 0008; `make knowledge-graph`); 4b planned |
 | 5 | Deployable app (API, frontend, Docker) | planned |
 | 6 | GNN research extension on MIMIC-IV | planned |
 | 7 | Documentation and results | planned |

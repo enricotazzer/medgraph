@@ -1,6 +1,6 @@
 # 0007: Knowledge store, retrieval index and medication rules (Phase 4a)
 
-- Status: proposed (awaiting the user's review)
+- Status: accepted (reviewed by the user, 2026-10-12)
 - Date: 2026-10-09
 
 ## Context
