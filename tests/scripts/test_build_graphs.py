@@ -127,3 +127,35 @@ def test_flags_are_evaluated_stored_and_reported(data_dir: Path, tmp_path: Path)
         assert stored is not None
         assert json.loads(stored)["evaluated"] is True
         assert store.load_rules("pat-b", RULESET, "2026-01-01") is not None
+
+
+def test_a_page_shows_only_explanations_of_unchanged_flags(
+    data_dir: Path, fhir_fixture_dir: Path
+) -> None:
+    import datetime as dt
+
+    import explain_flags as ef
+    from medgraph.agent.evidence import flag_hash
+    from medgraph.rules.model import Flag, PatientRules
+
+    flag = Flag(rule="ckd-gfr-follow-up", kind="follow_up_due", title="t", statement="s")
+    rules = PatientRules(
+        patient_id="pat-a", as_of=dt.date(2026, 1, 1), evaluated=True, flags=(flag,)
+    )
+    settings = Settings()
+    run_dir = settings.runs_dir / "explanations" / "tiny"
+    pack = {
+        "patient": "pat-a",
+        "rule": flag.rule,
+        "flag_hash": flag_hash(flag),
+        "query": "",
+        "searched": [],
+        "items": [{"id": "F", "kind": "flag", "text": "t. s"}],
+    }
+    ef.save_record(
+        ef.record_path(run_dir, "pat-a", flag.rule),
+        {"flag_hash": flag_hash(flag), "pack": pack, "explanations": {}, "note_check": None},
+    )
+    assert set(vp.explanations_for(settings, "tiny", "pat-a", rules)) == {"ckd-gfr-follow-up"}
+    changed = rules.model_copy(update={"flags": (flag.model_copy(update={"statement": "s2"}),)})
+    assert vp.explanations_for(settings, "tiny", "pat-a", changed) == {}

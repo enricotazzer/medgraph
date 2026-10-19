@@ -2,7 +2,7 @@
 # Extra arguments: make synthea-dev ARGS=--force
 
 .PHONY: setup lint format typecheck test test-synthea check synthea-pilot synthea-dev profile \
-	normalization extract-rules extract-llm graphs flags knowledge index knowledge-report knowledge-graph view concept-map report review
+	normalization extract-rules extract-llm graphs flags knowledge index knowledge-report knowledge-graph explain view concept-map report review
 
 setup:
 	uv sync
@@ -86,6 +86,19 @@ knowledge-report:
 # Sources joined to patient concepts by code, every quote checked (needs make knowledge)
 knowledge-graph:
 	uv run python scripts/build_knowledge_graph.py $(COHORT) $(ARGS)
+
+# Explanations and note check for a sample of flags (Phase 4b), in the background through
+# llm_run.sh: make explain OLLAMA_MODELS=/Volumes/T7/ollama-models (ARGS=--limit 1 for a smoke run;
+# ARGS="--dev 1" for development flags outside the sample; ARGS=--report-only rewrites the report
+# from the cache without the model). One model loaded at a time: bge-m3 is unloaded before the
+# chat model loads.
+explain:
+ifneq (,$(findstring --report-only,$(ARGS)))
+	uv run python scripts/explain_flags.py $(COHORT) $(ARGS)
+else
+	OLLAMA_MAX_LOADED_MODELS=1 scripts/dev/llm_run.sh explain-$(COHORT) \
+		uv run python -u scripts/explain_flags.py $(COHORT) $(ARGS)
+endif
 
 # One patient's page, for example: make view PATIENT=b475e58b (no PATIENT: suggestions)
 view:

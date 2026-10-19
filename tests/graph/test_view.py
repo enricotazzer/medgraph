@@ -133,3 +133,26 @@ def test_notes_and_their_sources_reach_the_page(graph: PatientGraph) -> None:
     model = json.loads(data)
     assert model["rules"]["notes"][0]["rule"] == "ras-inhibitor-nsaid"
     assert "lisinopril" in model["rule_sources"]["label-zestril-nsaid"]["quote"]
+
+
+def test_explanations_reach_the_page(graph: PatientGraph) -> None:
+    explanations = {
+        "ckd-gfr-follow-up": {
+            "items": {"F": {"kind": "flag", "text": "t", "node": None, "ref": None, "where": None}},
+            "variants": {
+                "clinician-en": {
+                    "origin": "template",
+                    "fallback": "no sentences returned",
+                    "model": "m",
+                    "prompt_version": "explain-v1",
+                    "sentences": [{"text": "No GFR test.", "cites": ["F"]}],
+                }
+            },
+            "note": None,
+            "notes_read": 0,
+            "note_checked": True,
+        }
+    }
+    html = render_html(graph, build_timeline(graph), "", explanations=explanations)
+    (data,) = DATA.findall(html)
+    assert json.loads(data)["explanations"] == explanations

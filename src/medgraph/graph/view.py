@@ -300,10 +300,12 @@ def render_html(
     rules: dict[str, Any] | None = None,
     *,
     knowledge: KnowledgeGraph | None = None,
+    explanations: dict[str, Any] | None = None,
 ) -> str:
     """The patient's page. ``banner`` says where the data came from (e.g. synthetic);
     ``rules`` adds follow-up flags and the computed eGFR series; ``knowledge`` adds the
-    sources joined to the record's concepts (:mod:`medgraph.graph.knowledge`)."""
+    sources joined to the record's concepts (:mod:`medgraph.graph.knowledge`); ``explanations``
+    adds each flag's checked explanations, by rule (:func:`medgraph.agent.explain.page_payload`)."""
     model = view_model(graph, timeline)
     model["banner"] = banner
     if rules is not None:
@@ -314,6 +316,8 @@ def render_html(
             model["series"].append(extra["computed_series"])
     if knowledge is not None:
         add_knowledge(model, knowledge)
+    if explanations:
+        model["explanations"] = explanations
     return _fill(
         "viewer.html",
         {

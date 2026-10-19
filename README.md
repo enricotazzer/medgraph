@@ -32,7 +32,7 @@ Turns a person's medical records (conditions, medications, labs, procedures, enc
 | 1 | FHIR ingestion, lab normalization, lab-report extraction and its evaluation | done (ADR 0003, 0004; results in `docs/results/`) |
 | 2 | Patient knowledge graph and visualization | done (ADR 0005; `make graphs`, `make view`) |
 | 3 | Guideline rules and follow-up flags | done (ADR 0006; `make flags`) |
-| 4 | Retrieval-augmented explanations and drug knowledge | 4a done: knowledge store, index, medication rules (ADR 0007; `make knowledge`); knowledge graph joined to the pages (ADR 0008; `make knowledge-graph`); 4b planned |
+| 4 | Retrieval-augmented explanations and drug knowledge | 4a done: knowledge store, index, medication rules (ADR 0007; `make knowledge`); knowledge graph joined to the pages (ADR 0008; `make knowledge-graph`); 4b built, awaiting review: explanations checked sentence by sentence, and the note check (ADR 0009; `make explain`) |
 | 5 | Deployable app (API, frontend, Docker) | planned |
 | 6 | GNN research extension on MIMIC-IV | planned |
 | 7 | Documentation and results | planned |
@@ -54,6 +54,7 @@ make knowledge          # pinned guidelines and the cohort's DailyMed labels -> 
 make index              # retrieval index (BM25); ARGS=--embed adds embeddings (local Ollama, background)
 make knowledge-report   # quotes, labels, index, retrieval checks -> docs/data/knowledge-dev-1000.md
 make knowledge-graph    # drug labels and guidelines joined to patient concepts by code, for the pages
+make explain           # checked explanations and note check for a sample of flags (local LLM, background)
 make view PATIENT=...   # one patient's graph, timeline and flags as an offline HTML page
 make concept-map       # every patient graph merged by concept, as one offline HTML page
 make review             # run the review notebook (notebooks/review.ipynb)

@@ -241,3 +241,11 @@ ul.links li { margin: 4px 0; }
 .status-not_met { color: var(--k-analyte); }
 .status-not_assessable { color: var(--muted); }
 .flags-panel .flag.note { background: transparent; border-style: dashed; }
+
+.flags-panel .explain { margin-top: 8px; }
+.flags-panel .explain .toolbar { margin: 6px 0; }
+.flags-panel .explain select { border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.flags-panel ol.explanation { padding-left: 20px; margin: 6px 0; }
+.flags-panel ol.explanation li { margin: 4px 0; }
+button.cite { font: 11px var(--mono); padding: 0 5px; margin-left: 2px; border-radius: 4px; }
+button.cite[disabled] { cursor: default; opacity: 0.7; }

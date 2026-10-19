@@ -17,6 +17,9 @@ $MEDGRAPH_DATA_DIR/
     extraction/<config>/<split>/
       predictions/<format>/<id>.json  # LLM transcription + cache key (text hash, model, prompt)
       metrics.json   # scores per report, provenance (report set, git state, code and model digests)
+    explanations/<cohort>/<patient>/<rule>.json  # evidence pack, four explanations, note check
+    explanations/<cohort>/review.md  # every variant of some flags side by side, for review
+    explanations/<cohort>/review-dev.md  # the same for the development flags (--dev)
     logs/            # background LLM runs (make extract-llm), cohort graph builds
   graphs/<cohort>.sqlite   # patient graphs (make graphs): tables graphs, nodes, edges, meta;
                            # rule results per ruleset and date (make flags): table rules

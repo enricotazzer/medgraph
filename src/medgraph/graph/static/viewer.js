@@ -642,6 +642,63 @@
       e.value ? ` · ${e.value}` : "",
       e.note ? h("div", { class: "muted" }, e.note) : null)));
   }
+  // Explanations written once by scripts/explain_flags.py and checked sentence by sentence.
+  const X = D.explanations || {};
+  const VARIANT_NAMES = {
+    "clinician-en": "Clinician · English",
+    "personal-en": "For the patient · English",
+    "clinician-it": "Clinico · Italiano",
+    "personal-it": "Per il paziente · Italiano",
+  };
+  function showPassage(item) {
+    lastConcept = null;
+    show(h("span", { class: "kind" }, "retrieved passage"), h("h2", {}, item.where),
+      h("dl", {}, h("dt", {}, "passage"), h("dd", { class: "mono" }, item.ref)),
+      h("p", { class: "muted" }, "Retrieved from the knowledge index for this flag's explanation. The page names the passage; it does not show the source's text."));
+  }
+  function citeChip(x, id) {
+    const item = x.items[id];
+    if (!item) return null;
+    let title = item.text || id;
+    let action = null;
+    if (item.kind === "evidence" && item.node && D.records[item.node]) action = () => showRecord(item.node, false);
+    if (item.kind === "statement") {
+      title = item.where || title;
+      const target = K && K.quotes[`statement:${item.ref}`];
+      if (target) action = () => selectConcept(target);
+    }
+    if (item.kind === "passage") {
+      title = `${item.where} (passage ${item.ref})`;
+      action = () => showPassage(item);
+    }
+    return h("button", { type: "button", class: "cite", title, disabled: !action, onclick: action || null }, id);
+  }
+  function explanationBlock(rule) {
+    const x = X[rule];
+    if (!x) return null;
+    const keys = Object.keys(VARIANT_NAMES).filter((k) => x.variants[k]);
+    if (!keys.length) return null;
+    const select = h("select", { "aria-label": "Language and reader" }, keys.map((k) => h("option", { value: k }, VARIANT_NAMES[k])));
+    const body = h("div", {});
+    function render() {
+      const v = x.variants[select.value];
+      body.replaceChildren(
+        h("p", { class: "muted" }, v.origin === "model"
+          ? `Written by the local model (${v.model}, ${v.prompt_version}); each of its sentences passed medgraph's checks against the items it cites. The last sentence is the flag's own.`
+          : `Fixed template${v.fallback ? `; the model's text was not used (${v.fallback})` : ""}.`),
+        h("ol", { class: "explanation" }, v.sentences.map((s) => h("li", {}, s.text, " ", s.cites.map((c) => citeChip(x, c))))));
+    }
+    select.addEventListener("change", render);
+    render();
+    let note = null;
+    if (x.note_checked) {
+      note = h("p", { class: "muted" }, x.note
+        ? `Note check: a note of ${x.note.date} says “${x.note.quote}” (the model reads this as: ${x.note.stance}).`
+        : x.notes_read ? `Note check: no mention in the ${x.notes_read} most recent note(s) of this period.` : "Note check: no note in this period.");
+    }
+    return h("details", { class: "explain" }, h("summary", {}, "Explanation"), h("div", { class: "toolbar" }, select), body, note);
+  }
+
   if (D.rules) {
     const r = D.rules;
     const panel = byId("flags-panel");
@@ -656,6 +713,7 @@
     const cards = flagsList.map((f) => h("div", { class: "flag" },
       h("h3", {}, f.title),
       h("p", {}, f.statement),
+      explanationBlock(f.rule),
       f.evidence.length ? [h("div", { class: "muted" }, "Evidence"), evidenceList(f.evidence)] : null,
       sourceDetails(f.sources),
       f.limitations.length ? h("p", { class: "lim" }, "Limitations: " + f.limitations.join(" ")) : null));

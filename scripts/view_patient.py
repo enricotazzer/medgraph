@@ -20,14 +20,18 @@ import datetime as dt
 import json
 from collections import Counter, defaultdict
 from pathlib import Path
+from typing import Any
 
 from build_knowledge_graph import load_current
 from evaluate_flags import evaluation_date
+from explain_flags import load_record, record_path
+from medgraph.agent.evidence import flag_hash
+from medgraph.agent.explain import page_payload
 from medgraph.graph.store import GraphStore, StoreError
 from medgraph.graph.timeline import build_timeline
 from medgraph.graph.view import render_html
 from medgraph.rules.flags import evaluate
-from medgraph.rules.model import RULESET
+from medgraph.rules.model import RULESET, PatientRules
 from medgraph.rules.monitoring import MONITORING, SNOMED
 from medgraph.settings import Settings
 from profile_cohort import load_meta
@@ -63,6 +67,20 @@ def list_patients(store: GraphStore, limit: int = 25) -> list[str]:
     ]
 
 
+def explanations_for(
+    settings: Settings, cohort: str, patient: str, rules: PatientRules
+) -> dict[str, Any]:
+    """The cached explanations of this patient's flags (``scripts/explain_flags.py``), for the
+    flags they were written for: a flag that has changed since shows none."""
+    run_dir = settings.runs_dir / "explanations" / cohort
+    found = {}
+    for flag in rules.flags:
+        record = load_record(record_path(run_dir, patient, flag.rule))
+        if record and record.get("flag_hash") == flag_hash(flag):
+            found[flag.rule] = page_payload(record)
+    return found
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Write a patient's graph as an HTML page.")
     parser.add_argument("cohort")
@@ -91,9 +109,17 @@ def main(argv: list[str] | None = None) -> int:
         except StoreError as exc:
             parser.error(str(exc))
     as_of = evaluation_date(load_meta(settings.synthea_dir / args.cohort), args.as_of)
-    rules = evaluate(graph, as_of).model_dump(mode="json")
+    result = evaluate(graph, as_of)
     knowledge = load_current(settings, args.cohort)
-    html = render_html(graph, build_timeline(graph), SYNTHETIC_BANNER, rules, knowledge=knowledge)
+    explained = explanations_for(settings, args.cohort, matches[0], result)
+    html = render_html(
+        graph,
+        build_timeline(graph),
+        SYNTHETIC_BANNER,
+        result.model_dump(mode="json"),
+        knowledge=knowledge,
+        explanations=explained,
+    )
     out = args.out or settings.views_dir / args.cohort / f"{matches[0]}.html"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")
