@@ -1,6 +1,6 @@
 # medgraph
 
-Turns a person's medical records (conditions, medications, labs, procedures, encounters and free-text lab reports) into a patient knowledge graph with a timeline, and raises **evidence-grounded follow-up flags**: findings that look unaddressed, medications missing the monitoring they need, and possible drug–condition or drug–drug issues. Every flag links to the exact values, dates and cited sources behind it.
+Turns a person's medical records (conditions, medications, labs, procedures, encounters and free-text lab reports) into a patient knowledge graph with a timeline, and raises **evidence-grounded follow-up flags**: findings that look unaddressed, medications missing the monitoring they need, and medications their label restricts at the recorded kidney function. Every flag links to the exact values, dates and cited sources behind it.
 
 > **Research prototype, not a medical device.** medgraph surfaces evidence for discussion with a clinician. It does not diagnose and must not be used to make medical decisions. In the EU, software intended to inform diagnostic or therapeutic decisions is regulated as a medical device (Regulation (EU) 2017/745, Annex VIII, Rule 11). This project is not certified and makes no such claim.
 
@@ -10,7 +10,10 @@ Turns a person's medical records (conditions, medications, labs, procedures, enc
 2. **Follow-up flags**, starting with two conditions: chronic kidney disease (KDIGO: eGFR and albuminuria persisting for more than 3 months) and anemia (WHO hemoglobin thresholds). Types of flag:
    - criteria met with no matching diagnosis;
    - a known condition without the follow-up labs its guideline expects;
-   - a medication without its required monitoring.
+   - a medication without its required monitoring;
+   - a medication its label restricts at the recorded eGFR (metformin).
+
+   Drug–drug interactions appear only as notes that quote a label (an RAS inhibitor with an NSAID). There is no interaction database (ADR 0010).
 3. **Two views of the same data.**
    - A clinician view: dense evidence tables and guideline references.
    - A personal view in English and Italian: plain language, with flags framed as things worth discussing with your doctor.
@@ -33,9 +36,9 @@ Turns a person's medical records (conditions, medications, labs, procedures, enc
 | 2 | Patient knowledge graph and visualization | done (ADR 0005; `make graphs`, `make view`) |
 | 3 | Guideline rules and follow-up flags | done (ADR 0006; `make flags`) |
 | 4 | Retrieval-augmented explanations and drug knowledge | 4a done: knowledge store, index, medication rules (ADR 0007; `make knowledge`); knowledge graph joined to the pages (ADR 0008; `make knowledge-graph`); 4b built, awaiting review: explanations checked sentence by sentence, and the note check (ADR 0009; `make explain`) |
-| 5 | Deployable app (API, frontend, Docker) | planned |
-| 6 | GNN research extension on MIMIC-IV | planned |
-| 7 | Documentation and results | planned |
+| 5 | Local app for one user (ADR 0010): 5a API and the pages served from it; 5b clinician and personal views in English and Italian; 5c uploads, confirmations and deletion; 5d Docker | planned |
+| 6 | Research on MIMIC-IV (ADR 0010): 6a ingest and rules; 6b one prediction task and its baselines; 6c GNN; 6d note check on MIMIC-IV-Note | planned |
+| 7 | Documentation and results: technical report, model cards, app quickstart, sources and licences | planned |
 
 ## Quickstart
 
@@ -70,7 +73,7 @@ scripts/        data tooling (cohort generation, profiling)
 configs/        one YAML per cohort or experiment
 tests/          unit tests and small synthetic fixtures
 docs/           architecture, decisions (ADRs), data notes
-frontend/       UI (Phase 5)
+frontend/       placeholder: the pages live in src/medgraph/graph/static (ADR 0010)
 ```
 
 ## Data and licensing
