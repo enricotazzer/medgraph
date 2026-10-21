@@ -36,6 +36,8 @@ from medgraph.graph.schema import (
     time_key,
 )
 from medgraph.graph.timeline import Timeline
+from medgraph.rules.model import PatientRules
+from medgraph.rules.plain import personal_view
 from medgraph.rules.sources import SOURCES
 
 STATIC = files("medgraph.graph") / "static"
@@ -61,7 +63,7 @@ LINK_BASIS: dict[str, str] = {
 }
 
 
-_MARKER = re.compile(r"/\*(?:CSP|VENDOR_CSS|VIEWER_CSS|VENDOR_JS|VIEWER_JS|DATA)\*/")
+_MARKER = re.compile(r"/\*(?:CSP|VENDOR_CSS|VIEWER_CSS|VENDOR_JS|VIEWER_JS|STRINGS|DATA)\*/")
 
 
 class VendorFileError(RuntimeError):
@@ -328,6 +330,7 @@ def page_model(
         extra = rules_model(graph, rules)
         model["rules"] = extra["rules"]
         model["rule_sources"] = extra["sources"]
+        model["personal"] = personal_view(PatientRules.model_validate(rules))
         if extra["computed_series"]:
             model["series"].append(extra["computed_series"])
     if knowledge is not None:
@@ -349,9 +352,16 @@ def render_page(model: dict[str, Any]) -> str:
             + "\n"
             + vendor_file("uPlot.iife.min.js"),
             "/*VIEWER_JS*/": _static("viewer.js"),
+            "/*STRINGS*/": _script_json(strings()),
             "/*DATA*/": _script_json(model),
         },
     )
+
+
+def strings() -> dict[str, dict[str, str]]:
+    """The interface text of the patient page, by language (``static/strings.json``)."""
+    data: dict[str, dict[str, str]] = json.loads(_static("strings.json"))
+    return data
 
 
 # A patient ID becomes a link to that patient's page only if it is a plain file name.

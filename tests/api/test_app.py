@@ -68,6 +68,20 @@ def test_a_cohort_lists_its_patients_and_links_their_pages(client: TestClient) -
     assert 'href="pat-b.html"' in text
     assert 'href="concept-map.html"' in text
     assert "Synthetic data (Synthea)" in text
+    # Search and filters work on escaped attributes; the script writes no HTML.
+    assert '<input id="q" type="search"' in text
+    assert 'data-search="pat-a' in text
+    assert "innerHTML" not in text
+
+
+def test_the_patient_list_escapes_what_it_puts_in_attributes() -> None:
+    from medgraph.api.pages import PatientRow, patients_page
+
+    row = PatientRow('p"><script>x</script>', 3, 0, None, ('Anemia "a" <b>',))
+    page = patients_page("tiny", [row])
+    assert "<script>x</script>" not in page
+    assert "<b>" not in page
+    assert 'data-flags="-1"' in page
 
 
 def test_a_served_page_is_the_page_make_view_writes(client: TestClient, tmp_path: Path) -> None:

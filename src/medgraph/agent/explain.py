@@ -13,6 +13,7 @@ Pages never call the model: explanations are written once, by ``scripts/explain_
 cached by the pack's digest, the model's digest, the prompt version and the variant.
 """
 
+import re
 from collections.abc import Sequence
 from typing import Any, Literal
 
@@ -23,8 +24,10 @@ from medgraph.agent.evidence import EvidencePack
 from medgraph.agent.llm import LLMError, OllamaClient
 from medgraph.agent.verify import Language, check_sentence, strip_refs
 from medgraph.rules.flags import DOCTOR
-from medgraph.rules.medications import DOCTOR as PRESCRIPTION_DOCTOR
 from medgraph.rules.model import Flag
+from medgraph.rules.plain import CLOSING_IT
+
+_MONTHS_IN_TITLE = re.compile(r"in the last (\d+) months")
 
 # v2: the closing sentence is added by code; passages are background, never a table to place
 # the person in; no general disclaimers; "OMS" in Italian.
@@ -117,19 +120,10 @@ LANGUAGE: dict[Language, str] = {
     ),
 }
 
-# The flag's own last sentence, which every explanation ends with, and its Italian version.
-# The English sentences are the rules' (rules/flags.py and rules/medications.py); a flag that
-# ends otherwise gets the first.
-CLOSING_IT = {
-    DOCTOR: "Può valere la pena parlarne con un medico.",
-    "A doctor can say whether this test is due.": (
-        "Un medico può dire se è il momento di fare questo test."
-    ),
-    PRESCRIPTION_DOCTOR: "Un medico può dire che cosa significa per la prescrizione.",
-}
-
 # Italian templates (the English template is the flag's own text). They name the source and
-# use only numbers in it; a test runs every template through the verifier.
+# use only numbers in it; a test runs every template through the verifier. A follow-up title
+# takes its interval from the flag's: the haemoglobin interval is 12 or 6 months by stage.
+# Every explanation ends with the flag's own last sentence; CLOSING_IT has its Italian.
 TITLE_IT = {
     "anaemia-criteria-no-diagnosis": (
         "Emoglobina sotto la soglia OMS; nel record non c'è una diagnosi di anemia"
@@ -138,9 +132,9 @@ TITLE_IT = {
         "I valori renali soddisfano i criteri della malattia renale cronica; nel record non "
         "c'è una diagnosi renale"
     ),
-    "ckd-gfr-follow-up": "Nessun test del GFR negli ultimi 12 mesi",
-    "ckd-albuminuria-follow-up": "Nessun test dell'albuminuria negli ultimi 12 mesi",
-    "ckd-haemoglobin-follow-up": "Nessun test dell'emoglobina negli ultimi 12 mesi",
+    "ckd-gfr-follow-up": "Nessun test del GFR negli ultimi {months} mesi",
+    "ckd-albuminuria-follow-up": "Nessun test dell'albuminuria negli ultimi {months} mesi",
+    "ckd-haemoglobin-follow-up": "Nessun test dell'emoglobina negli ultimi {months} mesi",
     "metformin-egfr-30-44": "Metformina attiva; l'ultimo eGFR è tra 30 e 44",
     "metformin-egfr-below-30": "Metformina attiva; l'ultimo eGFR è sotto 30",
     "epoetin-haemoglobin-monthly": (
@@ -257,7 +251,13 @@ def template(flag: Flag, pack: EvidencePack, language: Language) -> tuple[Senten
             limitations = " ".join(flag.limitations)
             sentences.append(Sentence(text=f"Limits of this check: {limitations}", cites=limits))
         return tuple(sentences)
-    sentences.append(Sentence(text=f"{TITLE_IT.get(flag.rule, flag.title)}.", cites=("F",)))
+    title = TITLE_IT.get(flag.rule, flag.title)
+    if "{months}" in title:
+        interval = _MONTHS_IN_TITLE.search(flag.title)
+        if interval is None:
+            raise ValueError(f"{flag.rule}: no interval in the title {flag.title!r}")
+        title = title.format(months=interval[1])
+    sentences.append(Sentence(text=f"{title}.", cites=("F",)))
     if flag.rule in WHY_IT and statements:
         sentences.append(Sentence(text=WHY_IT[flag.rule], cites=statements))
     if evidence:

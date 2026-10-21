@@ -20,12 +20,29 @@ from decimal import Decimal
 
 from medgraph.records import Comparator
 from medgraph.rules.context import Context
-from medgraph.rules.model import Assessment, ComputedEgfr, Evidence
+from medgraph.rules.model import Assessment, ComputedEgfr, Evidence, Threshold
 
 GFR_ABNORMAL_BELOW = 60
 ACR_ABNORMAL_FROM = Decimal(30)  # mg/g
 PERSISTENCE_DAYS = 90
 BLOOD_CREATININE = "http://loinc.org|38483-4"  # Creatinine [Mass/volume] in Blood
+# The two markers, for a page to draw on the eGFR and ACR charts.
+THRESHOLDS = (
+    Threshold(
+        analyte="egfr",
+        value=Decimal(GFR_ABNORMAL_BELOW),
+        unit="mL/min/{1.73_m2}",
+        shown=f"{GFR_ABNORMAL_BELOW} mL/min/1.73 m2",
+        source="kdigo-2024-criteria",
+    ),
+    Threshold(
+        analyte="urine_acr",
+        value=ACR_ABNORMAL_FROM,
+        unit="mg/g",
+        shown=f"{ACR_ABNORMAL_FROM} mg/g",
+        source="kdigo-2024-criteria",
+    ),
+)
 
 
 def gfr_category(egfr_whole: int) -> str:
@@ -201,6 +218,7 @@ def assess_ckd(
             summary="Kidney function could not be assessed.",
             reason="; ".join(why),
             sources=tuple(sources),
+            thresholds=THRESHOLDS,
         )
         return CkdResult(assessment, egfr, acr, latest_g)
 
@@ -221,6 +239,7 @@ def assess_ckd(
             evidence=tuple(evidence),
             sources=tuple(sources),
             limitations=tuple(limitations),
+            thresholds=THRESHOLDS,
         )
         return CkdResult(assessment, egfr, acr, latest_g)
 
@@ -246,5 +265,6 @@ def assess_ckd(
         evidence=tuple(evidence),
         sources=tuple(sources),
         limitations=tuple(limitations),
+        thresholds=THRESHOLDS,
     )
     return CkdResult(assessment, egfr, acr, latest_g)

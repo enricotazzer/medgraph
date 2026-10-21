@@ -28,7 +28,7 @@ from decimal import Decimal
 from medgraph.records import Comparator
 from medgraph.rules.context import Context, Sex, Value
 from medgraph.rules.diagnoses import CURRENT_SMOKER, NOT_SMOKING, PREGNANCY
-from medgraph.rules.model import Assessment, Evidence, Status
+from medgraph.rules.model import Assessment, Evidence, Status, Threshold
 
 SMOKER_ADJUSTMENT = Decimal(3)  # g/L, WHO Table 5, smoker, quantity unknown
 PREGNANCY_CUTOFFS = (Decimal(110), Decimal(105), Decimal(110))  # g/L, by trimester
@@ -199,8 +199,26 @@ def assess_anaemia(ctx: Context) -> AnaemiaResult:
             evidence=evidence,
             sources=tuple(sources),
             limitations=tuple(limitations),
+            thresholds=cutoff_threshold(cutoffs),
         ),
         latest,
+    )
+
+
+def cutoff_threshold(cutoffs: tuple[Decimal, ...]) -> tuple[Threshold, ...]:
+    """The cutoff applied, for the haemoglobin chart: only when there is one (in pregnancy
+    there is one per trimester). It is drawn in the series' canonical g/dL."""
+    if len(set(cutoffs)) != 1:
+        return ()
+    g_l = cutoffs[0]
+    return (
+        Threshold(
+            analyte="hemoglobin",
+            value=g_l / 10,  # g/L to the canonical g/dL, as above
+            unit="g/dL",
+            shown=f"{g_l} g/L",
+            source="who-2024-cutoffs",
+        ),
     )
 
 

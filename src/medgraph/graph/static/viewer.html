@@ -5,59 +5,87 @@
 <meta http-equiv="Content-Security-Policy" content="/*CSP*/">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>medgraph patient view</title>
+<title data-t="page.title">medgraph patient view</title>
 <style>/*VENDOR_CSS*/</style>
 <style>/*VIEWER_CSS*/</style>
 </head>
-<body>
+<body class="view-personal">
 <header class="top">
-  <div>
-    <h1>Patient graph and timeline</h1>
-    <p id="patient-line" class="muted"></p>
+  <nav id="crumbs" class="crumbs" data-t-aria="crumbs.label" hidden></nav>
+  <div class="top-row">
+    <div class="who">
+      <p class="brand">medgraph</p>
+      <h1 id="page-heading"></h1>
+      <p id="patient-line" class="muted"></p>
+    </div>
+    <div class="switches">
+      <div class="seg" role="group" data-t-aria="view.label">
+        <button type="button" data-view="personal" data-t="view.personal"></button>
+        <button type="button" data-view="clinician" data-t="view.clinician"></button>
+      </div>
+      <div class="seg" role="group" data-t-aria="lang.label">
+        <button type="button" data-lang="en" lang="en">EN</button>
+        <button type="button" data-lang="it" lang="it">IT</button>
+      </div>
+    </div>
   </div>
   <p id="banner" class="banner" role="note"></p>
 </header>
 <main class="layout">
-  <section id="flags-panel" class="panel flags-panel" aria-label="Follow-up flags" hidden></section>
-  <section class="panel graph-panel" aria-label="Graph of the record's concepts">
+  <section id="personal" class="personal">
+    <section class="p-section" aria-labelledby="p-flags-title">
+      <h2 id="p-flags-title"></h2>
+      <div id="p-flags"></div>
+    </section>
+    <section class="p-section" aria-labelledby="p-results-title">
+      <h2 id="p-results-title" data-t="p.results.title"></h2>
+      <p class="muted" data-t="p.results.intro"></p>
+      <div id="p-results" class="p-charts"></div>
+    </section>
+    <section class="p-section p-lists" aria-labelledby="p-lists-title">
+      <h2 id="p-lists-title" class="visually-hidden" data-t="p.meds.title"></h2>
+      <p class="muted" data-t="p.lists.intro"></p>
+      <div class="p-columns">
+        <div class="p-card"><h3 data-t="p.meds.title"></h3><div id="p-meds"></div></div>
+        <div class="p-card"><h3 data-t="p.conditions.title"></h3><div id="p-conditions"></div></div>
+      </div>
+    </section>
+    <div class="p-actions">
+      <button id="explore" type="button" class="secondary" aria-expanded="false"></button>
+      <button id="print" type="button" class="primary" data-t="p.print"></button>
+    </div>
+  </section>
+  <section id="flags-panel" class="panel flags-panel" data-t-aria="fl.label" hidden></section>
+  <section class="panel graph-panel" data-t-aria="graph.label">
     <div class="toolbar">
-      <div id="kind-toggles" class="toggles" role="group" aria-label="Kinds shown"></div>
-      <input id="search" type="search" placeholder="Find a concept" aria-label="Find a concept">
+      <div id="kind-toggles" class="toggles" role="group" data-t-aria="graph.kinds"></div>
+      <input id="search" type="search" data-t-placeholder="graph.search" data-t-aria="graph.search">
     </div>
     <div id="cy" class="cy"></div>
-    <p class="hint">Each node groups records with the same code. Columns, left to right: lab
-      reports, analytes, conditions, medications, procedures, sources (a drug's label and a
-      condition's guideline, linked by code, when the knowledge graph is built). Click a node or
-      a link for its records and sources. Drag to move, scroll to zoom.</p>
+    <p class="hint" data-t="graph.hint"></p>
   </section>
   <aside id="details" class="panel details" aria-live="polite"></aside>
-  <section class="panel timeline-panel" aria-label="Timeline">
+  <section class="panel timeline-panel" data-t-aria="tl.label">
     <div class="toolbar">
-      <h2>Timeline</h2>
+      <h2 data-t="tl.title"></h2>
       <span id="range-label" class="muted"></span>
-      <button id="reset-zoom" type="button">Full range</button>
+      <button id="reset-zoom" type="button" data-t="tl.full"></button>
     </div>
-    <p class="hint">Drag across a chart to zoom, double-click it to reset. Click a value or an
-      event for its source. A bar runs from start to end; a faded bar has no end recorded. Dots
-      are events on one day; click a group heading to expand or collapse it. Charts show usable
-      values only, and amber points come from a lab report alone; everything set aside is
-      listed under data notes.</p>
-    <canvas id="lanes" class="lanes" aria-label="Conditions, medications, procedures and encounters over time"></canvas>
+    <p class="hint" data-t="tl.hint"></p>
+    <canvas id="lanes" class="lanes" data-t-aria="tl.lanes"></canvas>
     <div id="charts"></div>
   </section>
-  <section class="panel notes-panel" aria-label="Data notes">
-    <h2>Data notes</h2>
+  <section class="panel notes-panel" data-t-aria="notes.label">
+    <h2 data-t="notes.title"></h2>
     <ul id="notes"></ul>
-    <h2>Problems found while reading the record</h2>
+    <h2 data-t="notes.issues"></h2>
     <ul id="issues"></ul>
   </section>
 </main>
-<footer class="foot muted">
-  medgraph is a research prototype, not a medical device. It shows what the record contains and
-  where each value came from; it does not diagnose. Generated offline; this page makes no
-  network requests.
-</footer>
+<footer class="foot muted" data-t="footer"></footer>
+<section id="print-sheet" class="print-sheet"></section>
 <div id="tooltip" class="tooltip" hidden></div>
+<script type="application/json" id="medgraph-strings">/*STRINGS*/</script>
 <script type="application/json" id="medgraph-data">/*DATA*/</script>
 <script>/*VENDOR_JS*/</script>
 <script>/*VIEWER_JS*/</script>

@@ -8,6 +8,7 @@ a test is due, and suggests a conversation with a doctor; it never states a diag
 """
 
 import datetime as dt
+from decimal import Decimal
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
@@ -33,6 +34,18 @@ class Evidence(_Model):
     sources: tuple[SourceRef, ...] = ()
 
 
+class Threshold(_Model):
+    """A value a rule compares one analyte's series with, so a page can draw it. ``value`` is in
+    the analyte's canonical unit (``normalize.analytes``); ``shown`` is the value as the source
+    states it."""
+
+    analyte: str  # e.g. "egfr" (it applies to the computed eGFR too), "hemoglobin"
+    value: Decimal
+    unit: str
+    shown: str  # e.g. "130 g/L"
+    source: str  # rules.sources ID
+
+
 class Assessment(_Model):
     """One criterion checked for one patient."""
 
@@ -44,6 +57,10 @@ class Assessment(_Model):
     evidence: tuple[Evidence, ...] = ()
     sources: tuple[str, ...] = ()  # rules.sources IDs
     limitations: tuple[str, ...] = ()
+    # Structured facts behind the summary, for the pages (they never change a result):
+    thresholds: tuple[Threshold, ...] = ()
+    interval_months: int | None = None  # a follow-up check's interval
+    recorded_stage: int | None = None  # the CKD stage recorded, if a follow-up check rests on it
 
 
 FlagKind = Literal[

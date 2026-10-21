@@ -252,6 +252,8 @@ def _follow_up(ctx: Context, ckd: CkdResult) -> tuple[list[Assessment], list[Fla
                     f"of {as_of}.",
                     evidence=(Evidence(node=last.node, label=f"last {what} test", date=last.date),),
                     sources=tuple(sources),
+                    interval_months=months,
+                    recorded_stage=coded_stage,
                 )
             )
             continue
@@ -276,6 +278,8 @@ def _follow_up(ctx: Context, ckd: CkdResult) -> tuple[list[Assessment], list[Fla
                 summary=summary,
                 evidence=evidence,
                 sources=tuple(sources),
+                interval_months=months,
+                recorded_stage=coded_stage,
             )
         )
         flags.append(

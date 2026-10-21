@@ -40,12 +40,29 @@ passages stay retrievable for explanations.
 """
 
 from dataclasses import dataclass
+from decimal import Decimal
 
 from medgraph.rules.context import Context, Medication, months_before
-from medgraph.rules.model import Assessment, ComputedEgfr, Evidence, Flag, Note
+from medgraph.rules.model import Assessment, ComputedEgfr, Evidence, Flag, Note, Threshold
 
 RXNORM = "http://www.nlm.nih.gov/research/umls/rxnorm"
 DOCTOR = "A doctor can say what this means for the prescription."
+METFORMIN_CONTRAINDICATED_BELOW = 30  # eGFR, label-metformin-egfr-30
+METFORMIN_ASSESS_BELOW = 45  # eGFR, label-metformin-egfr-45
+# The two label thresholds, for a page to draw on the eGFR chart.
+METFORMIN_THRESHOLDS = tuple(
+    Threshold(
+        analyte="egfr",
+        value=Decimal(value),
+        unit="mL/min/{1.73_m2}",
+        shown=f"{value} mL/min/1.73 m2",
+        source=source,
+    )
+    for value, source in (
+        (METFORMIN_CONTRAINDICATED_BELOW, "label-metformin-egfr-30"),
+        (METFORMIN_ASSESS_BELOW, "label-metformin-egfr-45"),
+    )
+)
 
 
 @dataclass(frozen=True)
@@ -281,14 +298,14 @@ def _metformin(
         f"{drug.authored}) and a latest eGFR of {latest.whole} mL/min/1.73 m2, computed with "
         f"CKD-EPI 2021 from the creatinine of {latest.date}."
     )
-    if latest.whole < 30:
+    if latest.whole < METFORMIN_CONTRAINDICATED_BELOW:
         rule, source = "metformin-egfr-below-30", "label-metformin-egfr-30"
         title = "Metformin is active; the latest eGFR is below 30"
         says = (
             "The metformin label says it is contraindicated below an eGFR of 30 mL/min/1.73 m2, "
             "and to discontinue it if the eGFR falls below 30."
         )
-    elif latest.whole < 45:
+    elif latest.whole < METFORMIN_ASSESS_BELOW:
         rule, source = "metformin-egfr-30-44", "label-metformin-egfr-45"
         title = "Metformin is active; the latest eGFR is between 30 and 44"
         says = (
@@ -303,6 +320,7 @@ def _metformin(
             summary=f"Metformin is active; latest computed eGFR {latest.whole} (45 or above).",
             evidence=evidence,
             sources=("label-metformin-egfr-30", "label-metformin-egfr-45"),
+            thresholds=METFORMIN_THRESHOLDS,
         )
         return [assessment], [], []
     assessment = Assessment(
@@ -312,6 +330,7 @@ def _metformin(
         evidence=evidence,
         sources=(source,),
         limitations=limitations,
+        thresholds=METFORMIN_THRESHOLDS,
     )
     flag = Flag(
         rule=rule,
@@ -351,6 +370,7 @@ def _epoetin(ctx: Context) -> tuple[list[Assessment], list[Flag]]:
                 f"a month of {ctx.as_of}.",
                 evidence=tuple(evidence),
                 sources=("label-epogen-haemoglobin",),
+                interval_months=1,
             )
         ], []
     found = f"the last was on {last.date}" if last else "none is recorded"
@@ -374,6 +394,7 @@ def _epoetin(ctx: Context) -> tuple[list[Assessment], list[Flag]]:
             evidence=tuple(evidence),
             sources=("label-epogen-haemoglobin",),
             limitations=limitations,
+            interval_months=1,
         )
     ], [
         Flag(

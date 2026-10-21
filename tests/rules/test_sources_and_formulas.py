@@ -12,7 +12,7 @@ from hypothesis import strategies as st
 from medgraph.rag.dailymed import LabelLock
 from medgraph.rag.documents import load_documents
 from medgraph.rag.quotes import locator_pages
-from medgraph.rules import anaemia, ckd, egfr
+from medgraph.rules import anaemia, ckd, egfr, medications
 from medgraph.rules.ckd import albuminuria_category, gfr_category
 from medgraph.rules.egfr import ckd_epi_2021, mdrd_2006, whole
 from medgraph.rules.sources import SOURCES
@@ -105,6 +105,27 @@ def test_who_cutoffs_are_the_cited_ones() -> None:
     )
     assert (Decimal(110), Decimal(105), Decimal(110)) == anaemia.PREGNANCY_CUTOFFS
     assert f"Smoker, quantity unknown {anaemia.SMOKER_ADJUSTMENT}" in quote("who-2024-smoking")
+
+
+def test_metformin_thresholds_are_the_cited_ones() -> None:
+    below = quote("label-metformin-egfr-30")
+    assert f"(eGFR) below {medications.METFORMIN_CONTRAINDICATED_BELOW} mL/minute" in below
+    assert f"falls below {medications.METFORMIN_CONTRAINDICATED_BELOW} mL/minute" in below
+    assess = quote("label-metformin-egfr-45")
+    assert f"between 30 to {medications.METFORMIN_ASSESS_BELOW} mL/minute" in assess
+    assert f"falls below {medications.METFORMIN_ASSESS_BELOW} mL/min" in assess
+    for threshold in medications.METFORMIN_THRESHOLDS:
+        assert f"below {threshold.value}" in quote(threshold.source)
+
+
+def test_chart_thresholds_are_the_rules_values_with_their_sources() -> None:
+    assert [(t.analyte, t.value, t.source) for t in ckd.THRESHOLDS] == [
+        ("egfr", Decimal(ckd.GFR_ABNORMAL_BELOW), "kdigo-2024-criteria"),
+        ("urine_acr", ckd.ACR_ABNORMAL_FROM, "kdigo-2024-criteria"),
+    ]
+    (hb,) = anaemia.cutoff_threshold((Decimal(133),))  # a smoking man: WHO 130 + 3 g/L
+    assert (hb.value, hb.unit, hb.shown) == (Decimal("13.3"), "g/dL", "133 g/L")
+    assert anaemia.cutoff_threshold(anaemia.PREGNANCY_CUTOFFS) == ()  # one per trimester: no line
 
 
 # --- CKD-EPI 2021 ------------------------------------------------------------------------------

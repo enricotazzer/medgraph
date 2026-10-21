@@ -131,6 +131,17 @@ th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line
 th { color: var(--muted); font-weight: 600; }
 td.num { text-align: right; font-variant-numeric: tabular-nums; }
 code { font-family: var(--mono); font-size: 12px; }
+.brand { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent); margin: 0 0 2px; }
+.crumbs { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
+.filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 12px 0;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  padding: 10px 12px; }
+.filters input[type="search"] { flex: 1 1 24ch; padding: 6px 10px; border: 1px solid var(--line);
+  border-radius: 999px; background: var(--bg); color: var(--ink); font: inherit; }
+.filters select { font: inherit; color: inherit; background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; max-width: 32ch; }
+tbody tr:hover td { background: var(--bg); }
 """
 NOT_A_DEVICE = (
     "Research prototype, not a medical device: it surfaces evidence for discussion with a "
@@ -170,10 +181,43 @@ def cohorts_page(cohorts: list[tuple[str, int]]) -> str:
     )
 
 
+# Filters the patient table in the page; values reach the page only as escaped attributes.
+_FILTER_SCRIPT = """
+(function () {
+  const rows = Array.from(document.querySelectorAll("#patients tbody tr"));
+  const q = document.getElementById("q");
+  const withFlags = document.getElementById("with-flags");
+  const withReports = document.getElementById("with-reports");
+  const condition = document.getElementById("condition");
+  const count = document.getElementById("count");
+  function apply() {
+    const text = q.value.trim().toLowerCase();
+    let shown = 0;
+    for (const row of rows) {
+      const d = row.dataset;
+      const ok = (!text || d.search.includes(text))
+        && (!withFlags.checked || Number(d.flags) > 0)
+        && (!withReports.checked || Number(d.reports) > 0)
+        && (!condition.value || d.conditions.split("|").includes(condition.value));
+      row.hidden = !ok;
+      if (ok) shown += 1;
+    }
+    count.textContent = shown.toLocaleString("en") + " of " + rows.length.toLocaleString("en")
+      + " shown";
+  }
+  for (const el of [q, withFlags, withReports, condition]) el.addEventListener("input", apply);
+  apply();
+})();
+"""
+
+
 def patients_page(cohort: str, rows: list[PatientRow]) -> str:
-    """A cohort's patients, with links to their pages and to the concept map."""
+    """A cohort's patients, with links to their pages and to the concept map, and a search
+    by ID or condition with filters for flags and lab reports."""
     body = "\n".join(
-        "<tr>"
+        f'<tr data-search="{escape(" ".join([r.patient, *r.conditions]).lower(), quote=True)}"'
+        f' data-flags="{-1 if r.flags is None else r.flags}" data-reports="{r.reports}"'
+        f' data-conditions="{escape("|".join(r.conditions), quote=True)}">'
         f'<td><a href="{escape(r.patient, quote=True)}.html"><code>{escape(r.patient)}</code>'
         "</a></td>"
         f'<td class="num">{r.records:,}</td>'
@@ -183,19 +227,32 @@ def patients_page(cohort: str, rows: list[PatientRow]) -> str:
         "</tr>"
         for r in rows
     )
+    conditions = sorted({c for r in rows for c in r.conditions})
+    options = "".join(
+        f'<option value="{escape(c, quote=True)}">{escape(c)}</option>' for c in conditions
+    )
     looked = sum(r.worth_a_look for r in rows)
     return _page(
         f"medgraph: {cohort}",
-        f'<p><a href="../../">Cohorts</a></p>\n<h1>{escape(cohort)}</h1>\n'
+        f'<p class="crumbs"><a href="../../">Cohorts</a> &rsaquo; {escape(cohort)}</p>\n'
+        f'<p class="brand">medgraph</p>\n<h1>{escape(cohort)}</h1>\n'
         f'<p class="banner">{escape(SYNTHETIC_BANNER)}</p>\n'
         f'<p><a href="concept-map.html">Concept map</a> of the whole cohort.</p>\n'
         f'<p class="muted">{len(rows):,} patients. The first {looked:,} have a condition '
         "in the monitoring table or a filed lab report. Flags are counted from the stored "
         f"results of <code>make flags</code> ({escape(RULESET)}; ? if not run); "
         "each page evaluates them again.</p>\n"
-        "<table>\n<thead><tr><th>patient</th><th>records</th><th>lab reports</th>"
-        "<th>flags</th><th>conditions in the monitoring table</th></tr></thead>\n"
-        f"<tbody>\n{body}\n</tbody>\n</table>",
+        '<div class="filters" role="search">\n'
+        '<input id="q" type="search" placeholder="Patient ID or condition" '
+        'aria-label="Search by patient ID or condition">\n'
+        '<label><input id="with-flags" type="checkbox"> with flags</label>\n'
+        '<label><input id="with-reports" type="checkbox"> with a lab report</label>\n'
+        f'<select id="condition" aria-label="Condition"><option value="">any condition'
+        f"</option>{options}</select>\n"
+        '<span id="count" class="muted" aria-live="polite"></span>\n</div>\n'
+        '<table id="patients">\n<thead><tr><th>patient</th><th>records</th>'
+        "<th>lab reports</th><th>flags</th><th>conditions in the monitoring table</th></tr>"
+        f"</thead>\n<tbody>\n{body}\n</tbody>\n</table>\n<script>{_FILTER_SCRIPT}</script>",
     )
 
 

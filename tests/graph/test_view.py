@@ -44,7 +44,7 @@ def test_record_text_cannot_break_out_of_the_data_block(graph: PatientGraph) -> 
     graph.nodes["note:doc-a1"]["text"] = hostile
     html = render_html(graph, build_timeline(graph), "")
     assert hostile not in html
-    assert html.count("</script>") == 3  # data, libraries, viewer
+    assert html.count("</script>") == 4  # strings, data, libraries, viewer
     (data,) = DATA.findall(html)
     assert json.loads(data)["records"]["note:doc-a1"]["text"] == hostile
 
