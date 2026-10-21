@@ -6,7 +6,8 @@
 ``PATIENT`` is a patient ID or a unique prefix of one. The graph comes from the cohort's store
 (``scripts/build_graphs.py``). The page is written to
 ``$MEDGRAPH_DATA_DIR/views/<cohort>/<patient>.html``, outside the repository; open it in a
-browser. It needs no server and makes no network requests.
+browser. It needs no server and makes no network requests. The local app (``make app``)
+serves the same page.
 
 ``--list`` prints patients worth a look: those with a condition in the monitoring table, a
 filed lab report, or both, with their flag count from ``make flags`` ("?" if not run).
@@ -17,68 +18,22 @@ the sources joined to the record by code if the knowledge graph is built
 
 import argparse
 import datetime as dt
-import json
-from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Any
 
-from build_knowledge_graph import load_current
-from evaluate_flags import evaluation_date
-from explain_flags import load_record, record_path
-from medgraph.agent.evidence import flag_hash
-from medgraph.agent.explain import page_payload
+from medgraph.api.pages import patient_model, patient_rows
+from medgraph.cohort import evaluation_date, load_meta
 from medgraph.graph.store import GraphStore, StoreError
-from medgraph.graph.timeline import build_timeline
-from medgraph.graph.view import render_html
-from medgraph.rules.flags import evaluate
-from medgraph.rules.model import RULESET, PatientRules
-from medgraph.rules.monitoring import MONITORING, SNOMED
+from medgraph.graph.view import render_page
 from medgraph.settings import Settings
-from profile_cohort import load_meta
-
-SYNTHETIC_BANNER = (
-    "Synthetic data (Synthea): a pipeline test, not a real person's record. Synthea's diseases "
-    "follow hand-written modules."
-)
 
 
 def list_patients(store: GraphStore, limit: int = 25) -> list[str]:
-    conditions: dict[str, set[str]] = defaultdict(set)
-    for patient, _, attrs in store.nodes_of_kind("condition"):
-        code = str(attrs.get("code", "")).removeprefix(f"{SNOMED}|")
-        if code in MONITORING:
-            conditions[patient].add(MONITORING[code][0].removesuffix(" (disorder)"))
-    reports = Counter(patient for patient, _, _ in store.nodes_of_kind("lab_report"))
-    sizes = dict(store.db.execute("SELECT patient_id, n_nodes FROM graphs").fetchall())
-    flags = {
-        patient: len(json.loads(payload)["flags"])
-        for patient, payload in store.db.execute(
-            "SELECT patient_id, payload FROM rules WHERE ruleset = ?", (RULESET,)
-        )
-    }
-    candidates = sorted(
-        set(conditions) | set(reports),
-        key=lambda p: (-(p in reports and p in conditions), -len(conditions[p]), sizes[p], p),
-    )
     return [
-        f"{p}  {sizes[p]:>6,} nodes  reports {reports[p]}  flags {flags.get(p, '?')}  "
-        f"{'; '.join(sorted(conditions[p]))}"
-        for p in candidates[:limit]
-    ]
-
-
-def explanations_for(
-    settings: Settings, cohort: str, patient: str, rules: PatientRules
-) -> dict[str, Any]:
-    """The cached explanations of this patient's flags (``scripts/explain_flags.py``), for the
-    flags they were written for: a flag that has changed since shows none."""
-    run_dir = settings.runs_dir / "explanations" / cohort
-    found = {}
-    for flag in rules.flags:
-        record = load_record(record_path(run_dir, patient, flag.rule))
-        if record and record.get("flag_hash") == flag_hash(flag):
-            found[flag.rule] = page_payload(record)
-    return found
+        f"{r.patient}  {r.records:>6,} nodes  reports {r.reports}  "
+        f"flags {'?' if r.flags is None else r.flags}  {'; '.join(r.conditions)}"
+        for r in patient_rows(store)
+        if r.worth_a_look
+    ][:limit]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -97,7 +52,7 @@ def main(argv: list[str] | None = None) -> int:
     db_path = settings.graphs_dir / f"{args.cohort}.sqlite"
     if not db_path.exists():
         parser.error(f"{db_path} not found; run scripts/build_graphs.py first")
-    with GraphStore(db_path) as store:
+    with GraphStore(db_path, read_only=True) as store:
         if args.list or not args.patient:
             print("\n".join(list_patients(store)))
             return 0
@@ -109,17 +64,10 @@ def main(argv: list[str] | None = None) -> int:
         except StoreError as exc:
             parser.error(str(exc))
     as_of = evaluation_date(load_meta(settings.synthea_dir / args.cohort), args.as_of)
-    result = evaluate(graph, as_of)
-    knowledge = load_current(settings, args.cohort)
-    explained = explanations_for(settings, args.cohort, matches[0], result)
-    html = render_html(
-        graph,
-        build_timeline(graph),
-        SYNTHETIC_BANNER,
-        result.model_dump(mode="json"),
-        knowledge=knowledge,
-        explanations=explained,
-    )
+    model, why = patient_model(settings, args.cohort, graph, as_of)
+    if why is not None:
+        print(why)
+    html = render_page(model)
     out = args.out or settings.views_dir / args.cohort / f"{matches[0]}.html"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")

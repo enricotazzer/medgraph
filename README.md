@@ -36,7 +36,7 @@ Turns a person's medical records (conditions, medications, labs, procedures, enc
 | 2 | Patient knowledge graph and visualization | done (ADR 0005; `make graphs`, `make view`) |
 | 3 | Guideline rules and follow-up flags | done (ADR 0006; `make flags`) |
 | 4 | Retrieval-augmented explanations and drug knowledge | 4a done: knowledge store, index, medication rules (ADR 0007; `make knowledge`); knowledge graph joined to the pages (ADR 0008; `make knowledge-graph`); 4b built, awaiting review: explanations checked sentence by sentence, and the note check (ADR 0009; `make explain`) |
-| 5 | Local app for one user (ADR 0010): 5a API and the pages served from it; 5b clinician and personal views in English and Italian; 5c uploads, confirmations and deletion; 5d Docker | planned |
+| 5 | Local app for one user (ADR 0010): 5a API and the pages served from it; 5b clinician and personal views in English and Italian; 5c uploads, confirmations and deletion; 5d Docker | 5a built, awaiting review: the pages served read-only on 127.0.0.1 (ADR 0011; `make app`) |
 | 6 | Research on MIMIC-IV (ADR 0010): 6a ingest and rules; 6b one prediction task and its baselines; 6c GNN; 6d note check on MIMIC-IV-Note | planned |
 | 7 | Documentation and results: technical report, model cards, app quickstart, sources and licences | planned |
 
@@ -60,6 +60,7 @@ make knowledge-graph    # drug labels and guidelines joined to patient concepts 
 make explain           # checked explanations and note check for a sample of flags (local LLM, background)
 make view PATIENT=...   # one patient's graph, timeline and flags as an offline HTML page
 make concept-map       # every patient graph merged by concept, as one offline HTML page
+make app                # the same pages served on http://127.0.0.1:8000/ (read-only, this machine only)
 make review             # run the review notebook (notebooks/review.ipynb)
 ```
 

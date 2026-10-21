@@ -26,6 +26,7 @@ import json
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from medgraph.cohort import label_lock_path
 from medgraph.graph.store import GraphStore
 from medgraph.rag.dailymed import (
     RXNORM,
@@ -54,7 +55,7 @@ def now() -> dt.datetime:
 
 
 def lock_path(cohort: str) -> Path:
-    return CONFIG_DIR / f"labels-{cohort}.lock.json"
+    return label_lock_path(CONFIG_DIR.parent, cohort)
 
 
 # --- documents ----------------------------------------------------------------------------

@@ -12,12 +12,13 @@ from collections import Counter, defaultdict
 from decimal import Decimal
 from pathlib import Path
 
+from medgraph.cohort import load_meta
 from medgraph.ingest.fhir import BundleError, read_bundle_file
 from medgraph.ingest.files import iter_data_files
 from medgraph.normalize.analytes import ANALYTES
 from medgraph.normalize.labs import LOINC, LabStatus, normalize_labs
 from medgraph.settings import Settings
-from profile_cohort import REPO_ROOT, distribution, load_meta, table
+from profile_cohort import REPO_ROOT, distribution, table
 
 STATUSES: tuple[LabStatus, ...] = (
     "ok",

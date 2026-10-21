@@ -13,15 +13,13 @@ when it is there and up to date.
 import argparse
 import time
 from collections import Counter
-from pathlib import Path
 
 from fetch_knowledge import CONFIG_DIR, lock_path
+from medgraph.cohort import current_knowledge, knowledge_graph_path, knowledge_inputs_for
 from medgraph.graph.knowledge import (
     KnowledgeError,
     KnowledgeGraph,
     build_knowledge_graph,
-    knowledge_inputs,
-    load_knowledge_graph,
     save_knowledge_graph,
 )
 from medgraph.rag.dailymed import LabelLock
@@ -31,25 +29,12 @@ from medgraph.rag.stored import PinError
 from medgraph.settings import Settings
 
 
-def graph_path(settings: Settings, cohort: str) -> Path:
-    return settings.knowledge_dir / f"graph-{cohort}.json"
-
-
-def current_inputs(cohort: str) -> dict[str, str]:
-    return knowledge_inputs(CONFIG_DIR / "documents.yaml", lock_path(cohort))
-
-
 def load_current(settings: Settings, cohort: str) -> KnowledgeGraph | None:
     """The cohort's knowledge graph if it is built and up to date; otherwise None, saying why."""
-    path = graph_path(settings, cohort)
-    if not path.exists():
-        print(f"no knowledge graph ({path}); pages leave sources out: run make knowledge-graph")
-        return None
-    try:
-        return load_knowledge_graph(path, current_inputs(cohort))
-    except (KnowledgeError, FileNotFoundError) as exc:
-        print(f"knowledge graph not used: {exc}")
-        return None
+    graph, why = current_knowledge(settings, cohort)
+    if why is not None:
+        print(why)
+    return graph
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -67,12 +52,12 @@ def main(argv: list[str] | None = None) -> int:
             specs=load_documents(CONFIG_DIR / "documents.yaml"),
             lock=lock,
             kstore=KnowledgeStore(settings.knowledge_dir),
-            inputs=current_inputs(args.cohort),
+            inputs=knowledge_inputs_for(CONFIG_DIR.parent, args.cohort),
         )
     except (KnowledgeError, PinError, FileNotFoundError) as exc:
         print(f"not built:\n{exc}")
         return 1
-    out = graph_path(settings, args.cohort)
+    out = knowledge_graph_path(settings, args.cohort)
     save_knowledge_graph(graph, out)
     nodes = Counter(n.kind for n in graph.nodes.values())
     links = Counter(x.kind for x in graph.links)

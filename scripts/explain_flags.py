@@ -38,10 +38,10 @@ from typing import Any
 from build_index import EMBEDDING_MODEL
 from build_knowledge_graph import load_current
 from evaluate_extraction import code_digest
-from evaluate_flags import evaluation_date
 from generate_synthea import git_state
 from medgraph.agent import explain as explainer
 from medgraph.agent import notes as note_check
+from medgraph.agent.cache import load_record, record_path, save_record
 from medgraph.agent.evidence import (
     PACK_VERSION,
     EvidencePack,
@@ -56,13 +56,13 @@ from medgraph.agent.evidence import (
 from medgraph.agent.explain import VARIANTS, Explanation, explain
 from medgraph.agent.llm import OllamaClient
 from medgraph.agent.notes import NoteCheck, check_notes
+from medgraph.cohort import evaluation_date, load_meta
 from medgraph.graph.schema import PatientGraph
 from medgraph.graph.store import GraphStore
-from medgraph.rag.fetch import write_atomic
 from medgraph.rag.index import KnowledgeIndex
 from medgraph.rules.model import RULESET, Flag, PatientRules
 from medgraph.settings import Settings
-from profile_cohort import REPO_ROOT, load_meta, pct, table
+from profile_cohort import REPO_ROOT, pct, table
 
 SCRIPTS = ("explain_flags.py", "build_index.py", "build_knowledge_graph.py", "evaluate_flags.py")
 SEED = "explain-sample-v1"
@@ -112,22 +112,6 @@ def sample_flags(
     for rule in sorted(by_rule):
         sample += sorted(by_rule[rule], key=key)[skip : skip + per_rule]
     return sample
-
-
-def record_path(run_dir: Path, patient: str, rule: str) -> Path:
-    return run_dir / patient / f"{rule}.json"
-
-
-def load_record(path: Path) -> dict[str, Any]:
-    if not path.exists():
-        return {}
-    data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
-    return data
-
-
-def save_record(path: Path, record: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    write_atomic(path, (json.dumps(record, indent=1, sort_keys=True) + "\n").encode())
 
 
 def digest_of(value: Any) -> str:

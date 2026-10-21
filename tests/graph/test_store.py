@@ -66,6 +66,27 @@ def test_missing_patient_and_other_schema_version(tmp_path: Path) -> None:
         GraphStore(path)
 
 
+def test_a_read_only_store_reads_and_never_writes(tmp_path: Path, graph: PatientGraph) -> None:
+    path = tmp_path / "g.sqlite"
+    with GraphStore(path) as store:
+        store.save(graph)
+    with GraphStore(path, read_only=True) as store:
+        assert graph_digest(store.load("pat-a")) == graph_digest(graph)
+        with pytest.raises(sqlite3.OperationalError, match="readonly"):
+            store.save(graph)
+
+
+def test_a_read_only_store_must_exist_and_be_a_store(tmp_path: Path) -> None:
+    missing = tmp_path / "graphs" / "none.sqlite"
+    with pytest.raises(StoreError, match="can't be opened"):
+        GraphStore(missing, read_only=True)
+    assert not missing.parent.exists()
+    other = tmp_path / "other.sqlite"
+    sqlite3.connect(other).close()
+    with pytest.raises(StoreError, match="not a graph store"):
+        GraphStore(other, read_only=True)
+
+
 def test_cohort_digest_ignores_order() -> None:
     assert cohort_digest({"a": "1", "b": "2"}) == cohort_digest({"b": "2", "a": "1"})
     assert cohort_digest({"a": "1"}) != cohort_digest({"a": "2"})

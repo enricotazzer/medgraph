@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from medgraph.cohort import load_meta
 from medgraph.ingest.files import iter_data_files
 from medgraph.settings import Settings
 
@@ -558,22 +559,6 @@ def _render_notes(profile: Profile) -> list[str]:
         ),
         "",
     ]
-
-
-def load_meta(cohort_dir: Path) -> dict[str, Any]:
-    manifest_path = cohort_dir / "MANIFEST.json"
-    if not manifest_path.exists():
-        return {"cohort": cohort_dir.name}
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    cfg = manifest["config"]
-    return {
-        "cohort": manifest["cohort"],
-        "synthea_version": cfg["synthea"]["version"],
-        "seed": cfg["seed"],
-        "clinician_seed": cfg["clinician_seed"],
-        "reference_date": cfg["reference_date"],
-        "content_digest": manifest["outputs"]["content_digest"],
-    }
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -27,6 +27,7 @@ from pydantic import BaseModel, ConfigDict
 from evaluate_extraction import ExtractionConfig, code_digest
 from generate_lab_reports import patient_tag, printed_patient_tag
 from generate_synthea import git_state
+from medgraph.cohort import load_meta
 from medgraph.graph.build import AttachedReport, build_patient_graph
 from medgraph.graph.check import check_coverage, check_graph
 from medgraph.graph.schema import (
@@ -46,7 +47,7 @@ from medgraph.ingest.lab_report import PROMPT_VERSION, Transcription, interpret
 from medgraph.normalize.analytes import ANALYTES
 from medgraph.rules.monitoring import MONITORING, SNOMED
 from medgraph.settings import Settings
-from profile_cohort import REPO_ROOT, load_meta, nearest_rank, pct, table
+from profile_cohort import REPO_ROOT, nearest_rank, pct, table
 
 SCRIPTS = ("build_graphs.py", "evaluate_extraction.py", "generate_lab_reports.py")
 # Kinds that can occur during an encounter (see EDGE_ENDPOINTS["occurred_during"]).

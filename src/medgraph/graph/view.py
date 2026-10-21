@@ -306,6 +306,22 @@ def render_html(
     ``rules`` adds follow-up flags and the computed eGFR series; ``knowledge`` adds the
     sources joined to the record's concepts (:mod:`medgraph.graph.knowledge`); ``explanations``
     adds each flag's checked explanations, by rule (:func:`medgraph.agent.explain.page_payload`)."""
+    model = page_model(
+        graph, timeline, banner, rules, knowledge=knowledge, explanations=explanations
+    )
+    return render_page(model)
+
+
+def page_model(
+    graph: PatientGraph,
+    timeline: Timeline,
+    banner: str,
+    rules: dict[str, Any] | None = None,
+    *,
+    knowledge: KnowledgeGraph | None = None,
+    explanations: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """The data the patient's page embeds (:func:`render_html` has the arguments)."""
     model = view_model(graph, timeline)
     model["banner"] = banner
     if rules is not None:
@@ -318,6 +334,11 @@ def render_html(
         add_knowledge(model, knowledge)
     if explanations:
         model["explanations"] = explanations
+    return model
+
+
+def render_page(model: dict[str, Any]) -> str:
+    """The patient's page around its data (:func:`page_model`)."""
     return _fill(
         "viewer.html",
         {

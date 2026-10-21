@@ -78,17 +78,29 @@ def graph_digest(graph: PatientGraph) -> str:
 
 
 class GraphStore:
-    def __init__(self, path: Path) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
+    def __init__(self, path: Path, *, read_only: bool = False) -> None:
+        """Open the store at ``path``, creating it if needed. A ``read_only`` store must exist
+        and is never written to: the local app opens stores this way."""
         self.path = path
-        self.db = sqlite3.connect(path)
-        self.db.execute("PRAGMA foreign_keys = ON")
-        with self.db:
-            self.db.executescript(_TABLES)
-            self.db.execute(
-                "INSERT OR IGNORE INTO meta VALUES ('schema_version', ?)", (SCHEMA_VERSION,)
-            )
-        stored = self.meta()["schema_version"]
+        if read_only:
+            try:
+                self.db = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
+            except sqlite3.Error as exc:
+                raise StoreError(f"{path} can't be opened: {exc}") from exc
+        else:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            self.db = sqlite3.connect(path)
+            self.db.execute("PRAGMA foreign_keys = ON")
+            with self.db:
+                self.db.executescript(_TABLES)
+                self.db.execute(
+                    "INSERT OR IGNORE INTO meta VALUES ('schema_version', ?)", (SCHEMA_VERSION,)
+                )
+        try:
+            stored = self.meta().get("schema_version")
+        except sqlite3.Error as exc:
+            self.db.close()
+            raise StoreError(f"{path} is not a graph store: {exc}") from exc
         if stored != SCHEMA_VERSION:
             self.db.close()
             raise StoreError(f"{path} holds {stored} graphs; this code reads {SCHEMA_VERSION}")

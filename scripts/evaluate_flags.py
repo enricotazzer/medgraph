@@ -24,6 +24,7 @@ from typing import Any
 
 from evaluate_extraction import code_digest
 from generate_synthea import git_state
+from medgraph.cohort import evaluation_date, load_meta
 from medgraph.graph.store import GraphStore, cohort_digest
 from medgraph.rules.context import context_from_graph
 from medgraph.rules.diagnoses import (
@@ -37,7 +38,7 @@ from medgraph.rules.flags import dialysis_sessions, evaluate, on_dialysis
 from medgraph.rules.model import RULESET, PatientRules
 from medgraph.rules.sources import SOURCES
 from medgraph.settings import Settings
-from profile_cohort import REPO_ROOT, load_meta, pct, table
+from profile_cohort import REPO_ROOT, pct, table
 
 SCRIPTS = ("evaluate_flags.py", "build_graphs.py", "evaluate_extraction.py")
 RULES = (
@@ -119,15 +120,6 @@ def agreement(counts: Counter[tuple[str, bool]], code_label: str) -> str:
         yes, no = counts[(status, True)], counts[(status, False)]
         rows.append([status.replace("_", " "), f"{yes:,}", f"{no:,}"])
     return table(["criteria", f"{code_label} recorded", "not recorded"], rows)
-
-
-def evaluation_date(meta: dict[str, Any], override: dt.date | None) -> dt.date:
-    """``--as-of``, else the cohort's simulation end date, else today (UTC)."""
-    if override is not None:
-        return override
-    if "reference_date" in meta:
-        return dt.date.fromisoformat(meta["reference_date"])
-    return dt.datetime.now(dt.UTC).date()
 
 
 def _quantile(values: list[float], q: float) -> float:

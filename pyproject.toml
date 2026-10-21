@@ -10,6 +10,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.156.8",
     "httpx>=0.28.1",
     "networkx>=3.7",
     "numpy>=2.5.3",
@@ -19,6 +20,7 @@ dependencies = [
     "pypdfium2>=5.13.0",
     "pyyaml>=6.0.3",
     "reportlab>=5.0.1",
+    "uvicorn>=0.54.0",
 ]
 
 [build-system]
@@ -102,6 +104,11 @@ markers = [
     "synthea: needs a generated Synthea cohort in MEDGRAPH_DATA_DIR (enable with --run-synthea)",
     "knowledge: needs the knowledge store in MEDGRAPH_DATA_DIR (enable with --run-knowledge)",
     "mimic: needs local MIMIC-IV, never runs in CI (enable with --run-mimic)",
+]
+filterwarnings = [
+    # Starlette's test client would rather use the httpx2 package; medgraph uses httpx (its
+    # Ollama client), and the lock pins Starlette, so this cannot change unannounced.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
 ]
 
 [tool.coverage.run]

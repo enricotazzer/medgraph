@@ -2,7 +2,7 @@
 # Extra arguments: make synthea-dev ARGS=--force
 
 .PHONY: setup lint format typecheck test test-synthea check synthea-pilot synthea-dev profile \
-	normalization extract-rules extract-llm graphs flags knowledge index knowledge-report knowledge-graph explain view concept-map report review
+	normalization extract-rules extract-llm graphs flags knowledge index knowledge-report knowledge-graph explain view concept-map app report review
 
 setup:
 	uv sync
@@ -107,6 +107,11 @@ view:
 # Every patient graph merged by concept, as one page next to the patient pages (needs make graphs)
 concept-map:
 	uv run python scripts/concept_map.py $(COHORT) $(ARGS)
+
+# The local app: every Synthea cohort's pages on http://127.0.0.1:$(PORT)/, read-only (ADR 0011)
+PORT ?= 8000
+app:
+	uv run python -m medgraph.api --port $(PORT)
 
 # Technical reports: figures from the saved metrics, then the PDFs (docs/reports/build/).
 report:

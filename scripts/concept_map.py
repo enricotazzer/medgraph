@@ -15,13 +15,12 @@ import time
 from collections.abc import Iterator
 from pathlib import Path
 
-from build_knowledge_graph import load_current
-from medgraph.graph.concepts import concept_map, with_knowledge
+from medgraph.api.pages import concept_model
+from medgraph.cohort import SYNTHETIC_BANNER
 from medgraph.graph.schema import PatientGraph
 from medgraph.graph.store import GraphStore
 from medgraph.graph.view import render_concept_map
 from medgraph.settings import Settings
-from view_patient import SYNTHETIC_BANNER
 
 
 def stored_graphs(store: GraphStore, every: int = 200) -> Iterator[PatientGraph]:
@@ -43,12 +42,11 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(f"{db_path} not found; run scripts/build_graphs.py first")
     out = args.out or settings.views_dir / args.cohort / "concept-map.html"
     started = time.perf_counter()
-    with GraphStore(db_path) as store:
-        model = concept_map(stored_graphs(store))
+    with GraphStore(db_path, read_only=True) as store:
+        model, why = concept_model(settings, args.cohort, stored_graphs(store))
         store_digest = store.meta()["store_digest"]
-    knowledge = load_current(settings, args.cohort)
-    if knowledge is not None:
-        model = with_knowledge(model, knowledge)
+    if why is not None:
+        print(why)
     pages = {p.stem for p in out.parent.glob("*.html") if not p.name.startswith(".")}
     html = render_concept_map(
         model, cohort=args.cohort, store_digest=store_digest, banner=SYNTHETIC_BANNER, pages=pages

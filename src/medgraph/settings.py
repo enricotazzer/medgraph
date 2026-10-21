@@ -8,6 +8,8 @@ from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+# The repository's configs/ folder, next to src/ in a checkout.
+REPO_CONFIGS = Path(__file__).resolve().parents[2] / "configs"
 
 
 class RemoteLLMError(ValueError):
@@ -40,6 +42,8 @@ class Settings(BaseSettings):
 
     ``data_dir`` holds everything that must never be committed: generated cohorts, downloaded
     tools, run outputs and, later, credentialed datasets. Keep it outside the repository.
+    ``config_dir`` holds the committed pins and locks (``configs/``); the local app checks the
+    knowledge graph against them.
 
     The LLM backend is local by default; any remote endpoint or cloud model must be enabled
     explicitly with ``allow_remote_llm``.
@@ -53,12 +57,13 @@ class Settings(BaseSettings):
     )
 
     data_dir: Path = Path("data")
+    config_dir: Path = REPO_CONFIGS
     llm_base_url: str = "http://127.0.0.1:11434"
     llm_model: str = "qwen3.5:9b"
     llm_timeout_s: float = 900
     allow_remote_llm: bool = False
 
-    @field_validator("data_dir")
+    @field_validator("data_dir", "config_dir")
     @classmethod
     def _expand_user(cls, value: Path) -> Path:
         return value.expanduser()

@@ -29,7 +29,7 @@ flowchart LR
 | `rules` | Guideline criteria as code (KDIGO 2024, KDIGO 2012, WHO 2024; CKD-EPI 2021) and drug-label rules (DailyMed), each citing a quoted source that is checked against the stored text; flags carry their evidence (ADR 0006, 0007). | No |
 | `rag` | Knowledge store of pinned guidelines and DailyMed labels; quote verification; passages with stable IDs; hybrid BM25 + bge-m3 retrieval with deterministic rank fusion (ADR 0007). | Embeddings only |
 | `agent` | Check whether notes acknowledge a finding; explanations in two registers and two languages. | Yes: language only, grounded in cited chunks |
-| `api` | FastAPI endpoints for ingest, graph, flags and explanations. | No |
+| `api` | The local FastAPI app: the patient pages and the concept map served read-only on 127.0.0.1, built by the same code as the files `make view` writes (ADR 0011). Uploads and model jobs come in Phase 5c. | No |
 | `gnn` | Future-diagnosis and missing-link prediction, compared against baselines. | No |
 
 ## Traceability

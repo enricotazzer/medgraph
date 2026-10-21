@@ -1,1 +1,1 @@
-"""HTTP API (FastAPI) exposing ingestion, graph, flag and explanation endpoints."""
+"""The local app (FastAPI): the cohorts' pages, served on this machine (:mod:`.app`)."""

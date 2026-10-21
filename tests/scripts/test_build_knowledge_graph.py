@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 import build_knowledge_graph as bkg
+from medgraph.cohort import knowledge_graph_path
 from medgraph.graph.knowledge import KnowledgeGraph, save_knowledge_graph
 from medgraph.settings import Settings
 
@@ -27,7 +28,7 @@ def test_a_graph_built_from_other_inputs_is_not_used(
     stale = KnowledgeGraph(
         cohort="dev-1000", inputs={"lock": "0"}, nodes={}, links=(), unlabelled={}
     )
-    save_knowledge_graph(stale, bkg.graph_path(settings, "dev-1000"))
+    save_knowledge_graph(stale, knowledge_graph_path(settings, "dev-1000"))
     assert bkg.load_current(settings, "dev-1000") is None
     assert "built from other inputs" in capsys.readouterr().out
 
@@ -36,6 +37,6 @@ def test_a_cohort_without_a_lock_has_no_sources(
     settings: Settings, capsys: pytest.CaptureFixture[str]
 ) -> None:
     empty = KnowledgeGraph(cohort="none", inputs={}, nodes={}, links=(), unlabelled={})
-    save_knowledge_graph(empty, bkg.graph_path(settings, "none"))
+    save_knowledge_graph(empty, knowledge_graph_path(settings, "none"))
     assert bkg.load_current(settings, "none") is None
     assert "knowledge graph not used" in capsys.readouterr().out
