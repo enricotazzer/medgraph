@@ -43,7 +43,8 @@ class Settings(BaseSettings):
     ``data_dir`` holds everything that must never be committed: generated cohorts, downloaded
     tools, run outputs and, later, credentialed datasets. Keep it outside the repository.
     ``config_dir`` holds the committed pins and locks (``configs/``); the local app checks the
-    knowledge graph against them.
+    knowledge graph against them. ``app_token_path`` is the local app's secret (ADR 0013); it
+    stays in the home folder, which has file permissions, not on the data volume.
 
     The LLM backend is local by default; any remote endpoint or cloud model must be enabled
     explicitly with ``allow_remote_llm``.
@@ -62,8 +63,9 @@ class Settings(BaseSettings):
     llm_model: str = "qwen3.5:9b"
     llm_timeout_s: float = 900
     allow_remote_llm: bool = False
+    app_token_path: Path = Path("~/.config/medgraph/app-token")
 
-    @field_validator("data_dir", "config_dir")
+    @field_validator("data_dir", "config_dir", "app_token_path")
     @classmethod
     def _expand_user(cls, value: Path) -> Path:
         return value.expanduser()
@@ -100,3 +102,8 @@ class Settings(BaseSettings):
     @property
     def knowledge_dir(self) -> Path:
         return self.data_dir / "knowledge"
+
+    @property
+    def people_dir(self) -> Path:
+        """Records added in the local app, one folder per person (``medgraph.api.people``)."""
+        return self.data_dir / "people"

@@ -1,6 +1,6 @@
 # 0012: Two views of the patient page, in English and Italian (Phase 5b)
 
-- Status: proposed (awaiting the user's review)
+- Status: accepted (the user, 2026-10-22, after checking the pages in the browser)
 - Date: 2026-10-21
 
 ## Context
@@ -126,14 +126,14 @@ The Italian template of the explanations (`agent/explain.py`) said "negli ultimi
   - the clinician view in both languages: summary rows, timeline charts, a rebuild after a language switch.
 
   All passed with no script error. The Phase 4b explanation check also still passes on three of them.
-- **Not checked: the look.** Headless Chrome-based browsers cannot render in the assistant's session. jsdom checks behaviour, not layout. The look rests on the user's visual check.
+- **Not checked: the look.** Headless Chrome-based browsers cannot render in the assistant's session. jsdom checks behaviour, not layout. The look rests on the user's visual check, done in the browser on 2026-10-22.
 
 ## Limitations
 
 - **The texts and the Italian are the assistant's.** They need the user's review, as does the plain-language register.
 - **Record text stays in English:** condition and medicine names, evidence labels, source quotes, and the rules' summaries and limitations. The Italian page says so.
 - **Number format:** numbers keep the decimal point in Italian (for example "1.4 mg/dL").
-- **English only:** the cohort and patient lists and the concept map.
+- **English only:** the cohort and patient lists and the concept map. The lists are in Italian too since ADR 0013; the concept map is still English only.
 - **Screen readers** were not tested. The page has `lang` attributes, labelled switches and keyboard focus styles.
 
 ## Consequences

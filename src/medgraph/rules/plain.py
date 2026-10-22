@@ -29,7 +29,15 @@ from medgraph.rules.medications import (
     METFORMIN_CONTRAINDICATED_BELOW,
     RAS_INHIBITORS,
 )
-from medgraph.rules.model import Assessment, Evidence, Flag, Note, PatientRules
+from medgraph.rules.model import (
+    Assessment,
+    Evidence,
+    Flag,
+    Note,
+    PatientRules,
+    Topic,
+    UnreadReason,
+)
 
 Language = Literal["en", "it"]
 LANGUAGES: tuple[Language, ...] = ("en", "it")
@@ -432,6 +440,124 @@ _ASSESSMENT_OF = {
 }
 
 
+# --- checks not done (rules/unread.py) ------------------------------------------------------
+
+_METFORMIN_CHECK: dict[Language, str] = {
+    "en": "Metformin and kidney function",
+    "it": "Metformina e funzione renale",
+}
+# The name of each check, for the list of checks a record held back.
+CHECK_NAMES: dict[str, dict[Language, str]] = {
+    "ckd-criteria-no-diagnosis": {
+        "en": "Kidney values and a recorded kidney diagnosis",
+        "it": "Valori renali e diagnosi renale registrata",
+    },
+    "anaemia-criteria-no-diagnosis": {
+        "en": "Haemoglobin and a recorded anaemia diagnosis",
+        "it": "Emoglobina e diagnosi di anemia registrata",
+    },
+    "ckd-gfr-follow-up": {
+        "en": "Kidney function test in chronic kidney disease",
+        "it": "Test della funzione renale nella malattia renale cronica",
+    },
+    "ckd-albuminuria-follow-up": {
+        "en": "Albuminuria test in chronic kidney disease",
+        "it": "Test dell'albuminuria nella malattia renale cronica",
+    },
+    "ckd-haemoglobin-follow-up": {
+        "en": "Haemoglobin test in chronic kidney disease",
+        "it": "Test dell'emoglobina nella malattia renale cronica",
+    },
+    "metformin-egfr-below-30": _METFORMIN_CHECK,
+    "metformin-egfr-30-44": _METFORMIN_CHECK,
+    "metformin-no-gfr-test": _METFORMIN_CHECK,
+    "epoetin-haemoglobin-monthly": {
+        "en": "Haemoglobin tests with epoetin alfa",
+        "it": "Test dell'emoglobina con epoetina alfa",
+    },
+    "ras-inhibitor-nsaid": {
+        "en": "An ACE inhibitor or ARB together with an NSAID",
+        "it": "Un ACE-inibitore o un sartano insieme a un FANS",
+    },
+}
+_TOPIC_IT: dict[Topic, str] = {
+    "kidney": "malattie dei reni, dialisi o trapianto di rene",
+    "anaemia": "l'anemia",
+    "metformin": "la metformina",
+    "epoetin": "l'epoetina",
+    "ras_nsaid": "un ACE-inibitore, un sartano o un FANS",
+    "lab": "un esame che i controlli usano",
+}
+UNCHECKED: dict[Language, dict[str, str]] = {
+    "en": {
+        "title": "Some checks could not be done",
+        "shows": "Your record has entries these checks may need but cannot read; they are "
+        "listed below. The checks recognise diagnoses, medicines and tests only by the codes "
+        "they list, so these entries could change what the checks find. medgraph therefore "
+        "shows no result for these checks:",
+        "limit": "An entry is listed when its code is not one the checks know and its name "
+        "mentions something a check looks for, or when it has no name. Entries whose names "
+        "mention nothing of the kind are not listed, and could still matter.",
+        "closing": "A doctor can look at the whole record.",
+    },
+    "it": {
+        "title": "Alcuni controlli non sono stati fatti",
+        "shows": "Nel record ci sono voci che questi controlli potrebbero dover leggere ma non "
+        "riescono a leggere; sono elencate sotto. I controlli riconoscono diagnosi, farmaci ed "
+        "esami solo dai codici che elencano, quindi queste voci potrebbero cambiare ciò che "
+        "trovano. Per questo medgraph non mostra un risultato per questi controlli:",
+        "limit": "Una voce è elencata quando il suo codice non è tra quelli che i controlli "
+        "conoscono e il suo nome riguarda qualcosa che un controllo cerca, oppure quando non ha "
+        "un nome. Le voci il cui nome non riguarda nulla del genere non sono elencate, e "
+        "potrebbero comunque contare.",
+        "closing": "Un medico può esaminare il record completo.",
+    },
+}
+
+
+def why_it(reason: UnreadReason, topics: tuple[Topic, ...]) -> str:
+    """The Italian of :func:`medgraph.rules.unread.why`."""
+    if reason == "no_name":
+        return "Non ha un nome, solo un codice che non è negli elenchi usati dai controlli."
+    if reason == "lab_code":
+        return (
+            "È un risultato di laboratorio codificato fuori da LOINC, il sistema con cui i "
+            "controlli leggono i risultati."
+        )
+    if topics == ("lab",):
+        return (
+            "Il nome è quello di un esame che i controlli usano, ed è codificato fuori da LOINC, "
+            "il sistema con cui i controlli leggono i risultati."
+        )
+    words = " e ".join(_TOPIC_IT[t] for t in topics)
+    return f"Il nome riguarda {words}, e il codice non è negli elenchi usati dai controlli."
+
+
+def unchecked_view(rules: PatientRules) -> dict[str, Any] | None:
+    """The checks a record's unread entries held back, and those entries, by language; None if
+    every check was done."""
+    if not rules.unchecked:
+        return None
+    checks: list[dict[Language, str]] = []
+    for u in rules.unchecked:
+        if CHECK_NAMES[u.rule] not in checks:
+            checks.append(CHECK_NAMES[u.rule])
+    return {
+        "en": UNCHECKED["en"],
+        "it": UNCHECKED["it"],
+        "checks": checks,
+        "records": [
+            {
+                "node": r.node,
+                "label": r.label,
+                "date": r.date.isoformat() if r.date else None,
+                "why": {"en": r.why, "it": why_it(r.reason, r.topics)},
+            }
+            for r in rules.unread
+        ],
+    }
+
+
 def flag_texts(rules: PatientRules, flag: Flag) -> Texts:
     rule = _ASSESSMENT_OF.get(flag.rule, flag.rule)
     assessment = next((a for a in rules.assessments if a.rule == rule), None)
@@ -464,6 +590,7 @@ def personal_view(rules: PatientRules) -> dict[str, Any]:
         "flags": [_shown(f, partial(flag_texts, rules, f)) for f in rules.flags],
         "notes": [_shown(n, partial(note_texts, n)) for n in rules.notes],
         "lines": list(lines.values()),
+        "unchecked": unchecked_view(rules),
     }
 
 

@@ -73,7 +73,7 @@
   const SEMANTIC_TAG = /\s*\((?:disorder|finding|procedure|situation|physical object|regime\/therapy|observable entity)\)$/;
   const UNIT_SHOWN = { "mL/min/{1.73_m2}": "mL/min/1.73 m²" };
   const unitShown = (unit) => UNIT_SHOWN[unit] || unit;
-  const BANNER = D.banner === S.en["banner.synthetic"] ? "banner.synthetic" : null;
+  const BANNER = ["banner.synthetic", "banner.uploaded"].find((k) => D.banner === S.en[k]) || null;
 
   const KINDS = [
     ["condition", true], ["medication", true], ["procedure", true], ["analyte", true], ["lab_report", true],
@@ -105,24 +105,34 @@
     document.title = t("page.title");
     byId("page-heading").textContent = t(state.view === "personal" ? "h1.personal" : "h1.clinician");
     const gender = p.gender ? (S.en[`gender.${p.gender}`] ? t(`gender.${p.gender}`) : p.gender) : null;
+    // Someone added in the app is shown by the label given there, not by the record's ID.
     byId("patient-line").textContent = [
-      t("patient.id", { id: p.id.slice(0, 8) }),
+      D.person ? D.person.label : t("patient.id", { id: p.id.slice(0, 8) }),
       gender,
       p.birth_date ? t("patient.born", { date: fd(p.birth_date.date) }) : null,
       p.deceased ? t("patient.died", { date: fd(p.deceased.date) }) : null,
       t("patient.records", { n: num(Object.keys(D.records).length), m: D.sources.length }),
     ].filter(Boolean).join(" · ");
     byId("banner").textContent = BANNER ? t(BANNER) : D.banner || "";
-    // Breadcrumbs only when the app serves the page (/cohorts/<cohort>/<patient>.html).
+    // Breadcrumbs only when the app serves the page: /cohorts/<cohort>/<patient>.html, or
+    // /people/<id>.html for someone added in the app.
     const crumbs = byId("crumbs");
     const parts = location.pathname.split("/");
-    const served = location.protocol.startsWith("http") && parts.length >= 4 && parts[1] === "cohorts";
-    crumbs.hidden = !served;
-    if (served) {
+    const http = location.protocol.startsWith("http");
+    const inCohort = http && parts.length >= 4 && parts[1] === "cohorts";
+    const person = http && parts.length === 3 && parts[1] === "people" && D.person;
+    crumbs.hidden = !(inCohort || person);
+    const sep = () => h("span", { "aria-hidden": "true" }, " › ");
+    const q = `?lang=${state.lang}`;
+    if (inCohort) {
       crumbs.replaceChildren(
-        h("a", { href: "../../" }, t("crumbs.cohorts")), h("span", { "aria-hidden": "true" }, " › "),
-        h("a", { href: "./" }, decodeURIComponent(parts[2])), h("span", { "aria-hidden": "true" }, " › "),
+        h("a", { href: `../../${q}` }, t("crumbs.home")), sep(),
+        h("a", { href: `./${q}` }, decodeURIComponent(parts[2])), sep(),
         h("span", { "aria-current": "page" }, t("crumbs.patient", { id: p.id.slice(0, 8) })));
+    } else if (person) {
+      crumbs.replaceChildren(
+        h("a", { href: `../${q}` }, t("crumbs.home")), sep(),
+        h("span", { "aria-current": "page" }, D.person.label));
     }
   }
   function applyStatic() {
@@ -839,6 +849,20 @@
         h("td", {}, f.evidence.map((e) => `${fd(e.date)}: ${e.label}${e.value ? ` ${e.value}` : ""}`).join("; ")),
         h("td", {}, f.sources.map((s) => h("div", { class: "mono", title: ((D.rule_sources || {})[s] || {}).citation || s }, s))))))) : null;
     const cards = flagsList.map((f, i) => flagCard(f, P.flags[i], "flag", i));
+    const heldBack = R.unchecked || [];
+    const unreadRecords = R.unread || [];
+    const unchecked = heldBack.length ? h("div", { class: "flag unchecked" },
+      h("h3", {}, t("fl.unchecked.title", { n: heldBack.length })),
+      h("p", { class: "muted" }, t("fl.unchecked.intro")),
+      h("ul", {}, heldBack.map((u) => h("li", {}, h("span", { class: "mono" }, u.rule), ` · ${u.topics.join(", ")}`))),
+      h("table", { class: "checks" },
+        h("thead", {}, h("tr", {}, h("th", {}, t("fl.unchecked.record")), h("th", {}, t("fl.unchecked.code")), h("th", {}, t("fl.unchecked.why")))),
+        h("tbody", {}, unreadRecords.map((r, i) => h("tr", {},
+          h("td", { lang: "en" }, D.records[r.node]
+            ? h("a", { href: "#", onclick: (ev) => { ev.preventDefault(); showRecord(r.node, false); } }, r.date ? `${fd(r.date)}: ${r.label}` : r.label)
+            : r.label),
+          h("td", { class: "mono" }, r.code || ""),
+          h("td", { lang: state.lang }, state.lang === "it" && P.unchecked ? P.unchecked.records[i].why.it : r.why)))))) : null;
     const notesList = R.notes || [];
     const notes = notesList.length ? h("details", { class: "notes" },
       h("summary", {}, t("fl.labelnotes", { n: notesList.length })),
@@ -860,7 +884,7 @@
       h("summary", {}, t("fl.checked")),
       h("p", { class: "muted" }, t("fl.checked.intro")),
       h("table", { class: "checks" }, h("tbody", {}, rows))) : null;
-    panel.replaceChildren(...[...head, summary, ...cards, notes, checked].filter(Boolean));
+    panel.replaceChildren(...[...head, unchecked, summary, ...cards, notes, checked].filter(Boolean));
   }
 
   // --- personal view --------------------------------------------------------------------
@@ -888,15 +912,35 @@
       text.closing ? h("p", { class: "closing" }, text.closing) : null,
       basisBlock(f, text));
   }
+  // Checks held back by entries the rules cannot read (rules/unread.py): no result for them.
+  function uncheckedCard(u) {
+    const text = u[state.lang];
+    return h("article", { class: "p-card unchecked" },
+      h("h3", {}, text.title),
+      h("p", { class: "shows" }, text.shows),
+      h("ul", { class: "plain-list" }, u.checks.map((c) => h("li", {}, c[state.lang]))),
+      h("details", { class: "basis" },
+        h("summary", {}, t("p.unchecked.records")),
+        h("ul", { class: "values" }, u.records.map((r) => h("li", {},
+          h("span", { class: "v-label", lang: "en" }, r.label),
+          r.date ? h("span", { class: "v-date" }, pd(r.date)) : null,
+          D.records[r.node] ? h("a", { href: "#", class: "v-open", onclick: (ev) => { ev.preventDefault(); openRecord(r.node); } }, t("p.basis.open")) : null,
+          h("div", { class: "muted small" }, r.why[state.lang])))),
+        h("h4", {}, t("p.basis.limit")), h("p", {}, text.limit),
+        state.lang === "it" ? h("p", { class: "muted" }, t("p.basis.english")) : null),
+      h("p", { class: "closing" }, text.closing));
+  }
   function renderPersonalFlags() {
     const box = byId("p-flags");
     const flags = R && R.evaluated ? R.flags || [] : [];
     const notes = R && R.evaluated ? R.notes || [] : [];
+    const U = R && R.evaluated ? P.unchecked : null;
     byId("p-flags-title").textContent = flags.length ? `${t("p.flags.title")} (${flags.length})` : t("p.flags.title");
     if (!R) { box.replaceChildren(h("p", { class: "muted" }, t("p.flags.notrun"))); return; }
     if (!R.evaluated) { box.replaceChildren(h("p", {}, t("p.flags.notevaluated", { why: R.note || "" }))); return; }
     fill(box,
-      flags.length ? h("p", { class: "muted" }, t("p.flags.intro")) : h("p", { class: "all-clear" }, t("p.flags.none")),
+      U ? uncheckedCard(U) : null,
+      flags.length ? h("p", { class: "muted" }, t("p.flags.intro")) : h("p", { class: "all-clear" }, t(U ? "p.flags.none.partial" : "p.flags.none")),
       flags.map((f, i) => personalCard(f, P.flags[i], "flag")),
       notes.length ? [h("h3", { class: "p-sub" }, `${t("p.notes.title")} (${notes.length})`), h("p", { class: "muted" }, t("p.notes.intro")),
         notes.map((n, i) => personalCard(n, P.notes[i], "note"))] : null);
@@ -986,6 +1030,7 @@
     const sheet = byId("print-sheet");
     const flags = R && R.evaluated ? R.flags || [] : [];
     const notes = R && R.evaluated ? R.notes || [] : [];
+    const U = R && R.evaluated ? P.unchecked : null;
     const item = (f, texts) => {
       const text = texts[state.lang];
       const src = (D.rule_sources || {})[text.source];
@@ -1008,7 +1053,16 @@
       h("p", { class: "banner" }, byId("banner").textContent),
       h("p", {}, t("print.intro")),
       R ? h("p", { class: "small" }, t("print.asof", { date: pd(R.as_of), ruleset: R.ruleset, printed: pd(today) })) : null,
-      flags.length ? flags.map((f, i) => item(f, P.flags[i])) : h("p", {}, t("print.none")),
+      U ? h("section", { class: "print-unchecked" },
+        h("h2", {}, U[state.lang].title),
+        h("p", {}, U[state.lang].shows),
+        h("ul", {}, U.checks.map((c) => h("li", {}, c[state.lang]))),
+        h("table", {},
+          h("thead", {}, h("tr", {}, h("th", {}, t("print.col.what")), h("th", {}, t("print.col.date")), h("th", {}, t("fl.unchecked.why")))),
+          h("tbody", {}, U.records.map((r) => h("tr", {}, h("td", { lang: "en" }, r.label), h("td", {}, r.date ? pd(r.date) : ""), h("td", {}, r.why[state.lang]))))),
+        h("p", { class: "small" }, h("strong", {}, `${t("p.basis.limit")}: `), U[state.lang].limit),
+        h("p", {}, h("em", {}, U[state.lang].closing))) : null,
+      flags.length ? flags.map((f, i) => item(f, P.flags[i])) : h("p", {}, t(U ? "print.none.partial" : "print.none")),
       notes.length ? [h("h2", { class: "print-sub" }, t("p.notes.title")), notes.map((n, i) => item(n, P.notes[i]))] : null,
       h("p", { class: "small" }, t("footer")));
     if (typeof window.print === "function") {

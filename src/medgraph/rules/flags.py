@@ -24,6 +24,10 @@ kidney disease for ``ckd-criteria-no-diagnosis``. A deceased patient gets no fla
 
 Medication rules from drug labels, with their flags and notes, are in ``rules/medications.py``.
 
+A check is not done when the record has records it may need and cannot read, such as a
+condition named like kidney disease under a code the lists don't have (``rules/unread.py``): it
+raises no flag or note, and the result lists it with those records.
+
 Flags say what the record shows and suggest talking to a doctor. They never state a diagnosis.
 """
 
@@ -45,13 +49,17 @@ from medgraph.rules.diagnoses import (
 from medgraph.rules.egfr import computed_series
 from medgraph.rules.medications import assess_medications
 from medgraph.rules.model import Assessment, Evidence, Flag, PatientRules
+from medgraph.rules.unread import find_unread, unchecked
 
 DOCTOR = "This may be worth discussing with a doctor."
 
 
-def evaluate(graph: PatientGraph, as_of: dt.date, *, dialysis: bool = True) -> PatientRules:
-    """The rules for one patient. ``dialysis=False`` ignores dialysis procedures; it exists only
-    to measure what recognizing them changes (``scripts/evaluate_flags.py``)."""
+def evaluate(
+    graph: PatientGraph, as_of: dt.date, *, dialysis: bool = True, guard: bool = True
+) -> PatientRules:
+    """The rules for one patient. ``dialysis=False`` ignores dialysis procedures, and
+    ``guard=False`` raises flags despite unread records; both exist only to measure what they
+    change (``scripts/evaluate_flags.py``)."""
     ctx = context_from_graph(graph, as_of)
     if not dialysis:
         ctx = replace(ctx, procedures=())
@@ -68,14 +76,19 @@ def evaluate(graph: PatientGraph, as_of: dt.date, *, dialysis: bool = True) -> P
     flags = [f for f in (_ckd_no_diagnosis(ctx, ckd), _anaemia_no_diagnosis(ctx, anaemia)) if f]
     follow_up, follow_flags = _follow_up(ctx, ckd)
     med_assessments, med_flags, notes = assess_medications(ctx, computed)
+    unread = find_unread(graph, as_of) if guard else ()
+    held = unchecked(unread)
+    skip = {u.rule for u in held}
     return PatientRules(
         patient_id=ctx.patient_id,
         as_of=as_of,
         evaluated=True,
         computed_egfr=computed,
         assessments=(ckd.assessment, anaemia.assessment, *follow_up, *med_assessments),
-        flags=(*flags, *follow_flags, *med_flags),
-        notes=tuple(notes),
+        flags=tuple(f for f in (*flags, *follow_flags, *med_flags) if f.rule not in skip),
+        notes=tuple(n for n in notes if n.rule not in skip),
+        unread=unread,
+        unchecked=held,
     )
 
 

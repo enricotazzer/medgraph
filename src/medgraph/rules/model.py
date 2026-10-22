@@ -16,7 +16,9 @@ from pydantic import BaseModel, ConfigDict
 from medgraph.records import SourceRef
 
 # rules-v2 (Phase 4): medication rules from drug labels, and dialysis recognized from procedures.
-RULESET = "rules-v2"
+# rules-v3 (Phase 5c): a check is not done when the record has records it may need and cannot
+# read (rules/unread.py).
+RULESET = "rules-v3"
 
 Status = Literal["met", "not_met", "not_assessable"]
 
@@ -105,6 +107,32 @@ class ComputedEgfr(_Model):
     whole: int  # rounded to a whole number; categories use this
 
 
+# What a check may need to read: kidney conditions and procedures, anaemia diagnoses, the
+# medicines of the medication rules, and lab results.
+Topic = Literal["kidney", "anaemia", "metformin", "epoetin", "ras_nsaid", "lab"]
+UnreadReason = Literal["name", "no_name", "lab_code"]
+
+
+class Unread(_Model):
+    """A record a check may need and the rules cannot read (``rules/unread.py``)."""
+
+    node: str
+    kind: str  # graph node kind
+    label: str  # as recorded
+    code: str | None  # "system|code"
+    date: dt.date | None
+    topics: tuple[Topic, ...]
+    reason: UnreadReason
+    why: str  # one sentence, English
+
+
+class Unchecked(_Model):
+    """A check that was not done because of unread records: it raises no flag or note."""
+
+    rule: str  # the flag or note rule
+    topics: tuple[Topic, ...]  # the topics with unread records that held it back
+
+
 class PatientRules(_Model):
     patient_id: str
     ruleset: str = RULESET
@@ -115,3 +143,5 @@ class PatientRules(_Model):
     assessments: tuple[Assessment, ...] = ()
     flags: tuple[Flag, ...] = ()
     notes: tuple[Note, ...] = ()
+    unread: tuple[Unread, ...] = ()
+    unchecked: tuple[Unchecked, ...] = ()

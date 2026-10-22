@@ -14,18 +14,23 @@ from medgraph.graph.build import build_patient_graph
 from medgraph.ingest.fhir import parse_bundle
 from medgraph.rules.egfr import ckd_epi_2021, whole
 from medgraph.rules.flags import evaluate
-from medgraph.rules.model import Flag, Note, PatientRules
+from medgraph.rules.model import Flag, Note, PatientRules, Topic, UnreadReason
 from medgraph.rules.plain import (
+    CHECK_NAMES,
     CLOSING_IT,
     FLAG_TEXTS,
     LANGUAGES,
     NOTE_TEXTS,
+    UNCHECKED,
+    Language,
     Text,
     flag_texts,
     personal_view,
     show_date,
+    why_it,
 )
 from medgraph.rules.sources import SOURCES
+from medgraph.rules.unread import TOPIC_WORDS, why
 
 LOINC = "http://loinc.org"
 SNOMED = "http://snomed.info/sct"
@@ -245,3 +250,58 @@ def test_real_rules_never_fall_back_and_a_malformed_note_does() -> None:
     (shown,) = personal_view(rules.model_copy(update={"notes": (bare,)}))["notes"]
     assert shown["fallback"] is True
     assert shown["it"]["title"] == shown["en"]["title"] == "t"
+
+
+# --- checks not done (rules/unread.py) ---------------------------------------------------------
+
+
+def coded_condition(id_: str, system: str, code: str, display: str | None) -> Any:
+    coding = {"system": system, "code": code} | ({"display": display} if display else {})
+    resource = condition(id_, code)
+    resource["code"] = {"coding": [coding]}
+    return resource
+
+
+UNREAD = run(
+    lab("c1", "2025-01-01", 1.5),
+    lab("c2", "2025-06-01", 1.5),
+    coded_condition("k1", "http://hl7.org/fhir/sid/icd-9-cm", "585.3", "Malattia renale cronica"),
+    coded_condition("k2", "http://hl7.org/fhir/sid/icd-9-cm", "285.9", None),
+)
+
+
+def test_every_check_has_a_name_in_both_languages() -> None:
+    assert set(CHECK_NAMES) == set(FLAG_RULES) | set(NOTE_RULES)
+    for names in CHECK_NAMES.values():
+        assert set(names) == set(LANGUAGES)
+
+
+def test_held_back_checks_are_shown_and_their_flags_are_not() -> None:
+    assert UNREAD.flags == ()
+    view = personal_view(UNREAD)
+    assert view["flags"] == []
+    unchecked = view["unchecked"]
+    assert unchecked["en"]["title"] == "Some checks could not be done"
+    assert [r["node"] for r in unchecked["records"]] == ["condition:k1", "condition:k2"]
+    # Metformin's three rules share one name; each check is listed once.
+    names = [c["en"] for c in unchecked["checks"]]
+    assert len(names) == len(set(names))
+    assert personal_view(SCENARIOS["ckd"])["unchecked"] is None
+
+
+def unchecked_texts() -> list[tuple[str, str]]:
+    texts = [(lang, v) for lang in LANGUAGES for v in UNCHECKED[lang].values()]
+    texts += [(lang, names[lang]) for names in CHECK_NAMES.values() for lang in LANGUAGES]
+    topic_sets: list[tuple[Topic, ...]] = [(t,) for t in TOPIC_WORDS] + [("kidney", "anaemia")]
+    reasons: list[UnreadReason] = ["name", "no_name", "lab_code"]
+    for reason in reasons:
+        for topics in topic_sets:
+            texts += [("en", why(reason, topics)), ("it", why_it(reason, topics))]
+    return texts
+
+
+@pytest.mark.parametrize(("language", "text"), unchecked_texts())
+def test_unchecked_texts_pass_the_explanation_checks(language: Language, text: str) -> None:
+    assert text
+    assert wording_problems(text) == [], text
+    assert language_problem(text, language) is None, text

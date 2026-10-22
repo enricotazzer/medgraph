@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import view_patient as vp
+from medgraph.api.access import COOKIE
 from medgraph.api.app import HEADERS, NO_TELEMETRY, create_app
 from medgraph.graph.build import build_patient_graph
 from medgraph.graph.store import GraphStore, cohort_digest
@@ -43,19 +44,24 @@ def data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fhir_fixture_dir: 
     save_store(data / "graphs" / "tiny.sqlite", fhir_fixture_dir)
     save_store(data / "graphs" / "other.sqlite", fhir_fixture_dir)
     monkeypatch.setenv("MEDGRAPH_DATA_DIR", str(data))
+    monkeypatch.setenv("MEDGRAPH_APP_TOKEN_PATH", str(tmp_path / "home" / "app-token"))
     monkeypatch.chdir(tmp_path)  # no .env from the repository
     return data
 
 
 @pytest.fixture
 def client(data_dir: Path) -> TestClient:
-    return TestClient(create_app(Settings()), base_url="http://127.0.0.1:8000")
+    """A browser that has opened the app's link: it holds the app's cookie."""
+    app = create_app(Settings())
+    client = TestClient(app, base_url="http://127.0.0.1:8000")
+    client.cookies.set(COOKIE, app.state.secret)
+    return client
 
 
 def test_the_index_lists_synthea_cohorts_only(client: TestClient) -> None:
     response = client.get("/")
     assert response.status_code == 200
-    assert 'href="cohorts/tiny/"' in response.text
+    assert 'href="cohorts/tiny/?lang=en"' in response.text
     assert "2 patients" in response.text
     assert "other" not in response.text
     assert client.get("/cohorts/other/").status_code == 404
@@ -64,10 +70,14 @@ def test_the_index_lists_synthea_cohorts_only(client: TestClient) -> None:
 
 def test_a_cohort_lists_its_patients_and_links_their_pages(client: TestClient) -> None:
     text = client.get("/cohorts/tiny/").text
-    assert 'href="pat-a.html"' in text
-    assert 'href="pat-b.html"' in text
+    assert 'href="pat-a.html#lang=en"' in text
+    assert 'href="pat-b.html#lang=en"' in text
     assert 'href="concept-map.html"' in text
     assert "Synthetic data (Synthea)" in text
+    italian = client.get("/cohorts/tiny/?lang=it").text
+    assert '<html lang="it">' in italian
+    assert 'href="pat-a.html#lang=it"' in italian
+    assert "Dati sintetici (Synthea)" in italian
     # Search and filters work on escaped attributes; the script writes no HTML.
     assert '<input id="q" type="search"' in text
     assert 'data-search="pat-a' in text

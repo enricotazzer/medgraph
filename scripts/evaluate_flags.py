@@ -84,6 +84,11 @@ class Totals:
     mdrd_gaps: list[float] = field(default_factory=list)  # reported minus MDRD of the creatinine
     ckd_vs_code: Counter[tuple[str, bool]] = field(default_factory=Counter)
     anaemia_vs_code: Counter[tuple[str, bool]] = field(default_factory=Counter)
+    unread_patients: int = 0
+    unread_records: Counter[tuple[str, str, str]] = field(default_factory=Counter)  # kind, label
+    unchecked: Counter[str] = field(default_factory=Counter)
+    flagged_without_guard: Counter[str] = field(default_factory=Counter)
+    noted_without_guard: Counter[str] = field(default_factory=Counter)
 
     def add(self, result: PatientRules, extra: dict[str, Any]) -> None:
         self.patients += 1
@@ -109,6 +114,11 @@ class Totals:
         self.egfr_skipped.update(extra["skipped"])
         self.egfr_pairs += extra["pairs"]
         self.mdrd_gaps += extra["mdrd_gaps"]
+        self.unread_patients += bool(result.unread)
+        self.unread_records.update((u.kind, u.label, u.reason) for u in result.unread)
+        self.unchecked.update(u.rule for u in result.unchecked)
+        self.flagged_without_guard.update({f.rule for f in extra["without_guard"].flags})
+        self.noted_without_guard.update({n.rule for n in extra["without_guard"].notes})
         status = {a.rule: a.status for a in result.assessments}
         self.ckd_vs_code[(status["ckd-criteria"], extra["kidney_code"])] += 1
         self.anaemia_vs_code[(status["anaemia-criteria"], extra["anaemia_code"])] += 1
@@ -189,6 +199,35 @@ def render(cohort: str, as_of: dt.date, t: Totals, provenance: dict[str, Any]) -
             ]
             + [["any flag", f"{t.any_flag:,}", f"{t.any_flag_without_dialysis:,}"]],
         ),
+        "",
+        "## Unread records",
+        "",
+        "A check is not done when the record has a record it may need and the rules cannot "
+        "read: an unlisted code whose name mentions what the check looks for, a lab result coded "
+        "outside LOINC, or a record with no name (`rules/unread.py`). It raises no flag or note.",
+        "",
+        f"- Evaluated patients with an unread record: {t.unread_patients:,}.",
+        "",
+        table(
+            ["record kind", "name as recorded", "why", "records"],
+            [[k, label, why, f"{n:,}"] for (k, label, why), n in sorted(t.unread_records.items())],
+        )
+        if t.unread_records
+        else "No unread records.",
+        "",
+        table(
+            ["check", "patients not checked", "flagged", "flagged without the guard"],
+            [
+                [r, f"{t.unchecked[r]:,}", f"{on[r]:,}", f"{off[r]:,}"]
+                for r, on, off in [
+                    *((r, t.flagged, t.flagged_without_guard) for r in FLAG_RULES),
+                    *((r, t.noted, t.noted_without_guard) for r in NOTE_RULES),
+                ]
+                if t.unchecked[r]
+            ],
+        )
+        if t.unchecked
+        else "Every check was done for every patient.",
         "",
         "## Assessments",
         "",
@@ -294,6 +333,7 @@ def main(argv: list[str] | None = None) -> int:
             sessions = dialysis_sessions(ctx)
             extra = {
                 "without_dialysis": evaluate(graph, as_of, dialysis=False),
+                "without_guard": evaluate(graph, as_of, guard=False),
                 "on_dialysis": on_dialysis(ctx) is not None,
                 "dialysis_ever": bool(sessions),
                 "failure_code": any(
